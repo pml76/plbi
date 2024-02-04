@@ -1,0 +1,18 @@
+
+use std::string::String;
+use crate::grammar::ast::Ast;
+
+grammar;
+
+pub Start: Ast = {
+    "load_files" <f:ScanFileNames> => Ast{ loadable_filenames: f }
+};
+
+ScanFileNames: Vec<String> = {
+    <v:(<FileNameId>)*> => v
+};
+
+FileNameId: String = {
+    r"[0-9a-zA-z/.]+" => String::from(<>)
+};
+

@@ -1,0 +1,22 @@
+[package]
+name = "plbi"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+name = "plbi"
+path = "src/lib.rs"
+
+[[bin]]
+name = "plbi"
+path = "src/main.rs"
+
+
+[build-dependencies] 
+lalrpop = "0.20.0"
+
+[dependencies]
+cxx-qt = "0.6.0"
+lalrpop-util = { version = "0.20.0", features = ["lexer", "unicode"] }
+polars = { version = "0.37.0", features = ["lazy", "csv", "json", "parquet"] }
