@@ -1,6 +1,6 @@
 
 use std::string::String;
-use crate::grammar::ast::Ast;
+use crate::grammar::ast::{Ast, LoadableFormatData, CSVData};
 
 grammar;
 
@@ -8,9 +8,13 @@ pub Start: Ast = {
     "load_files" <f:ScanFileNames> => Ast{ loadable_filenames: f }
 };
 
-ScanFileNames: Vec<String> = {
-    <v:(<FileNameId>)*> => v
+ScanFileNames: Vec<LoadableFormatData> = {
+    <v:(<FileNameData>)*> => v
 };
+
+FileNameData: LoadableFormatData = {
+    "CSV" "(" "filename" "=" <f:FileNameId> ")" => LoadableFormatData::CSV(CSVData{filename:<>, separator: None})
+} 
 
 FileNameId: String = {
     r"[0-9a-zA-z/.]+" => String::from(<>)

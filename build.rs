@@ -1,7 +1,12 @@
 use cxx_qt_build::{CxxQtBuilder, QmlModule};
 
 fn main() {
-    lalrpop::process_root().unwrap();
+    // lalrpop::process_root().unwrap();
+
+    let _ = lalrpop::Configuration::new()
+        .emit_rerun_directives(true)
+        .force_build(true)
+        .process_current_dir();
 
     CxxQtBuilder::new()
         // Link Qt's Network library
