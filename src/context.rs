@@ -39,10 +39,15 @@ fn load_base_tables(
                     return Err(PlbiError::PlbiCouldNotReadFile(s));
                 }
 
-                println!("reading file: {}", path.display());
+                if data.filename == "contoso/FactOnlineSales.csv" {
+                    println!("reading file: {}", path.display());
+                }
 
                 let df = reader.unwrap().has_header(true).finish();
                 if df.is_err() {
+                    let polars_error = df.err().unwrap();
+                    println!("{}", polars_error);
+
                     let s = format!("{}", path.display());
                     return Err(PlbiError::PlbiCouldNotReadFile(s));
                 }
