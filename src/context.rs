@@ -39,11 +39,26 @@ fn load_base_tables(
                     return Err(PlbiError::PlbiCouldNotReadFile(s));
                 }
 
-                if data.filename == "contoso/FactOnlineSales.csv" {
-                    println!("reading file: {}", path.display());
-                }
+                println!("reading file: {}", path.display());
 
-                let df = reader.unwrap().has_header(true).finish();
+                // get the types right ...
+                let schema = data.field_types.clone().map(|element| {
+                    element
+                        .iter()
+                        .map(|(k, v)| {
+                            let dtype = v.clone();
+                            Field::new(k, dtype)
+                        })
+                        .collect::<Schema>()
+                });
+
+                let df = reader
+                    .unwrap()
+                    .has_header(true) // Assume the file has headers
+                    .with_dtypes(schema.map(Arc::new))
+                    // .infer_schema(None) // Scan entire file to determine the schema
+                    .finish();
+
                 if df.is_err() {
                     let polars_error = df.err().unwrap();
                     println!("{}", polars_error);
@@ -105,107 +120,135 @@ fn load_base_tables(
 fn generate_context_test() {
     use crate::grammar::ast::*;
 
+    let mut online_sales_field_types = HashMap::new();
+    online_sales_field_types.insert("SalesOrderNumber".to_string(), DataType::String);
+
     let ast = Ast {
         loadable_filenames: vec![
             LoadableFormatData::CSV(CSVData {
                 filename: "contoso/DimAccount.csv".to_string(),
                 separator: None,
+                field_types: None,
             }),
             LoadableFormatData::CSV(CSVData {
                 filename: "contoso/DimChannel.csv".to_string(),
                 separator: None,
+                field_types: None,
             }),
             LoadableFormatData::CSV(CSVData {
                 filename: "contoso/DimCurrency.csv".to_string(),
                 separator: None,
+                field_types: None,
             }),
             LoadableFormatData::CSV(CSVData {
                 filename: "contoso/DimCustomer.csv".to_string(),
                 separator: None,
+                field_types: None,
             }),
             LoadableFormatData::CSV(CSVData {
                 filename: "contoso/DimDate.csv".to_string(),
                 separator: None,
+                field_types: None,
             }),
             LoadableFormatData::CSV(CSVData {
                 filename: "contoso/DimEmployee.csv".to_string(),
                 separator: None,
+                field_types: None,
             }),
             LoadableFormatData::CSV(CSVData {
                 filename: "contoso/DimEntity.csv".to_string(),
                 separator: None,
+                field_types: None,
             }),
             LoadableFormatData::CSV(CSVData {
                 filename: "contoso/DimGeography.csv".to_string(),
                 separator: None,
+                field_types: None,
             }),
             LoadableFormatData::CSV(CSVData {
                 filename: "contoso/DimMachine.csv".to_string(),
                 separator: None,
+                field_types: None,
             }),
             LoadableFormatData::CSV(CSVData {
                 filename: "contoso/DimOutage.csv".to_string(),
                 separator: None,
+                field_types: None,
             }),
             LoadableFormatData::CSV(CSVData {
                 filename: "contoso/DimProduct.csv".to_string(),
                 separator: None,
+                field_types: None,
             }),
             LoadableFormatData::CSV(CSVData {
                 filename: "contoso/DimProductCategory.csv".to_string(),
                 separator: None,
+                field_types: None,
             }),
             LoadableFormatData::CSV(CSVData {
                 filename: "contoso/DimProductSubcategory.csv".to_string(),
                 separator: None,
+                field_types: None,
             }),
             LoadableFormatData::CSV(CSVData {
                 filename: "contoso/DimPromotion.csv".to_string(),
                 separator: None,
+                field_types: None,
             }),
             LoadableFormatData::CSV(CSVData {
                 filename: "contoso/DimSalesTerritory.csv".to_string(),
                 separator: None,
+                field_types: None,
             }),
             LoadableFormatData::CSV(CSVData {
                 filename: "contoso/DimScenario.csv".to_string(),
                 separator: None,
+                field_types: None,
             }),
             LoadableFormatData::CSV(CSVData {
                 filename: "contoso/DimStore.csv".to_string(),
                 separator: None,
+                field_types: None,
             }),
             LoadableFormatData::CSV(CSVData {
                 filename: "contoso/FactExchangeRate.csv".to_string(),
                 separator: None,
+                field_types: None,
             }),
             LoadableFormatData::CSV(CSVData {
                 filename: "contoso/FactInventory.csv".to_string(),
                 separator: None,
+                field_types: None,
             }),
             LoadableFormatData::CSV(CSVData {
                 filename: "contoso/FactITMachine.csv".to_string(),
                 separator: None,
+                field_types: None,
             }),
             LoadableFormatData::CSV(CSVData {
                 filename: "contoso/FactITSLA.csv".to_string(),
                 separator: None,
+                field_types: None,
             }),
             LoadableFormatData::CSV(CSVData {
                 filename: "contoso/FactOnlineSales.csv".to_string(),
                 separator: None,
+                field_types: Some(online_sales_field_types),
             }),
             LoadableFormatData::CSV(CSVData {
                 filename: "contoso/FactSales.csv".to_string(),
                 separator: None,
+                field_types: None,
             }),
             LoadableFormatData::CSV(CSVData {
                 filename: "contoso/FactSalesQuota.csv".to_string(),
                 separator: None,
+                field_types: None,
             }),
             LoadableFormatData::CSV(CSVData {
                 filename: "contoso/FactStrategyPlan.csv".to_string(),
                 separator: None,
+                field_types: None,
             }),
         ],
     };

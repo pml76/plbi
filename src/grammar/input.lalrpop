@@ -2,6 +2,7 @@
 use std::string::String;
 use crate::grammar::ast::{Ast, LoadableFormatData, CSVData};
 use polars::datatypes::{TimeUnit, DataType};
+use std::collections::HashMap;
 
 grammar;
 
@@ -14,12 +15,23 @@ ScanFileNames: Vec<LoadableFormatData> = {
 };
 
 FileNameData: LoadableFormatData = {
-    "CSV" "(" "filename" "=" <f:FileNameId> ("," <g:FieldTypes>)? ")" => LoadableFormatData::CSV(CSVData{filename:<>, separator: None, field_types: g})
+    "CSV" "(" "filename" "=" <f:FileNameId> <g:FieldTypes?> ")" => LoadableFormatData::CSV(CSVData{filename:f, separator: None, field_types: g})
 } 
 
-FieldTypes:: HashMap<String, DataType> = {
-    "{" ( "(" <g:String> "=" <h:DataType> ")")+ "}" => 
+
+FieldTypes: HashMap<String, DataType> = {
+    "{" <f:(FieldType+)> "}" => {
+                                    let mut ret = HashMap::<String,DataType>::new();
+                                    for (g,h) in f {
+                                        ret.insert(g,h);
+                                    }
+                                    ret
+                                }
 };
+
+FieldType: (String, DataType) = {
+    "(" <g:String> ":" <h:DataType> ")" => (g,h)
+}
 
 DataType: DataType = {
     "Boolean" => DataType::Boolean,

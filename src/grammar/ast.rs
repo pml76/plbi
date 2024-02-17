@@ -1,5 +1,6 @@
-use polars::datatypes;
-use std::string::String::DataType;
+use std::collections::HashMap;
+
+use polars::datatypes::DataType;
 
 #[derive(PartialEq, Debug)]
 pub struct CSVData {
@@ -18,13 +19,12 @@ pub struct Ast {
     pub loadable_filenames: Vec<LoadableFormatData>,
 }
 
-pub enum DataType {}
-
 impl CSVData {
-    fn new(filename: String, separator: Option<String>) -> CSVData {
+    pub fn new(filename: String, separator: Option<String>) -> CSVData {
         CSVData {
             filename,
             separator,
+            field_types: None,
         }
     }
 }

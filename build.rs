@@ -1,27 +1,15 @@
-use cfgrammar::yacc::YaccKind;
+
 use cxx_qt_build::{CxxQtBuilder, QmlModule};
-use lrlex::CTLexerBuilder;
+
 
 fn main() {
     // lalrpop::process_root().unwrap();
 
-    /*  let _ = lalrpop::Configuration::new()
+    let _ = lalrpop::Configuration::new()
         .emit_rerun_directives(true)
         .force_build(true)
         .process_current_dir();
-    */
-
-    CTLexerBuilder::new()
-        .lrpar_config(|ctp| {
-            ctp.yacckind(YaccKind::Grmtools)
-                .grammar_in_src_dir("calc.y")
-                .unwrap()
-        })
-        .lexer_in_src_dir("calc.l")
-        .unwrap()
-        .build()
-        .unwrap();
-
+    
     CxxQtBuilder::new()
         // Link Qt's Network library
         // - Qt Core is always linked

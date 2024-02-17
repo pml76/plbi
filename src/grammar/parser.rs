@@ -11,10 +11,12 @@ fn start_parser_test() {
             LoadableFormatData::CSV(CSVData {
                 filename: "f/ga.csv".to_string(),
                 separator: None,
+                field_types: None,
             }),
             LoadableFormatData::CSV(CSVData {
                 filename: "01dg/dfg.parquet".to_string(),
                 separator: None,
+                field_types: None,
             }),
         ],
     };
