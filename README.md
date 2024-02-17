@@ -1,6 +1,6 @@
 # README
 
-PLBI is a tool for querying large data sets composed of tables that are linked by relations.
+tldr is a tool for querying large data sets composed of tables that are linked by relations.
 
 ## Testing
 
