@@ -20,7 +20,7 @@ FileNameData: LoadableFormatData = {
 
 
 FieldTypes: HashMap<String, DataType> = {
-    "{" <f:(FieldType+)> "}" => {
+    "field_types" "{" <f:(FieldType+)> "}" => {
                                     let mut ret = HashMap::<String,DataType>::new();
                                     for (g,h) in f {
                                         ret.insert(g,h);
@@ -62,8 +62,10 @@ TimeUnit: TimeUnit = {
     "Milliseconds" => TimeUnit::Milliseconds,
 };
 
+
+
 String: String = {
-    r#""[^"]""# => String::from(<>)
+    "\"" <r#"[^"]+"#> "\"" => String::from(<>)
 };
 
 Usize: usize = {

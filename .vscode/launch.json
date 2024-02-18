@@ -7,16 +7,16 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug unit tests in library 'plbi'",
+            "name": "Debug unit tests in library 'tldr'",
             "cargo": {
                 "args": [
                     "test",
                     "--no-run",
                     "--lib",
-                    "--package=plbi"
+                    "--package=tldr"
                 ],
                 "filter": {
-                    "name": "plbi",
+                    "name": "tldr",
                     "kind": "lib"
                 }
             },
@@ -26,15 +26,15 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug executable 'plbi'",
+            "name": "Debug executable 'tldr'",
             "cargo": {
                 "args": [
                     "build",
-                    "--bin=plbi",
-                    "--package=plbi"
+                    "--bin=tldr",
+                    "--package=tldr"
                 ],
                 "filter": {
-                    "name": "plbi",
+                    "name": "tldr",
                     "kind": "bin"
                 }
             },
@@ -44,16 +44,16 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug unit tests in executable 'plbi'",
+            "name": "Debug unit tests in executable 'tldr'",
             "cargo": {
                 "args": [
                     "test",
                     "--no-run",
-                    "--bin=plbi",
-                    "--package=plbi"
+                    "--bin=tldr",
+                    "--package=tldr"
                 ],
                 "filter": {
-                    "name": "plbi",
+                    "name": "tldr",
                     "kind": "bin"
                 }
             },
