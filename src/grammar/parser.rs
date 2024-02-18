@@ -7,7 +7,7 @@ use nom::{
     combinator::{map, opt},
     error::ParseError,
     multi::many1,
-    sequence::{delimited, pair, separated_pair, tuple},
+    sequence::{delimited, pair, preceded, separated_pair, tuple},
     IResult, Parser,
 };
 use polars::datatypes::{DataType, TimeUnit};
@@ -16,14 +16,14 @@ use super::ast::{Ast, CSVData, LoadableFormatData};
 
 /// A combinator that takes a parser `inner` and produces a parser that also consumes both leading and
 /// trailing whitespace, returning the output of `inner`.
-pub fn ws<'a, F, O, E: ParseError<&'a str>>(inner: F) -> impl Parser<&'a str, O, E>
+fn ws<'a, F, O, E: ParseError<&'a str>>(inner: F) -> impl Parser<&'a str, O, E>
 where
     F: Parser<&'a str, O, E>,
 {
     delimited(multispace0, inner, multispace0)
 }
 
-pub fn parser_start(input: &str) -> IResult<&str, Ast> {
+pub fn ast_parser(input: &str) -> IResult<&str, Ast> {
     map(
         pair(ws(tag("load_files")), ws(file_descriptors_parser)),
         |(_, fs)| Ast {
@@ -32,19 +32,22 @@ pub fn parser_start(input: &str) -> IResult<&str, Ast> {
     )(input)
 }
 
-pub fn file_descriptors_parser(input: &str) -> IResult<&str, Vec<LoadableFormatData>> {
+fn file_descriptors_parser(input: &str) -> IResult<&str, Vec<LoadableFormatData>> {
     many1(file_descriptor_parser)(input)
 }
 
-pub fn file_descriptor_parser(input: &str) -> IResult<&str, LoadableFormatData> {
+fn file_descriptor_parser(input: &str) -> IResult<&str, LoadableFormatData> {
     let csv_head = tuple((
         ws(tag("CSV")),
         ws(tag("(")),
-        ws(tag("filename")),
+        ws(tag("file_name")),
         ws(tag("=")),
     ));
     let csv_tail = ws(tag(")"));
-    let csv_contents = pair(ws(string_parser), opt(ws(schema_parser)));
+    let csv_contents = pair(
+        ws(string_parser),
+        opt(preceded(ws(tag(",")), ws(schema_parser))),
+    );
 
     let csv_parser = delimited(csv_head, csv_contents, csv_tail);
 
@@ -59,7 +62,7 @@ pub fn file_descriptor_parser(input: &str) -> IResult<&str, LoadableFormatData> 
     csv_map(input)
 }
 
-pub fn schema_parser(input: &str) -> IResult<&str, HashMap<String, DataType>> {
+fn schema_parser(input: &str) -> IResult<&str, HashMap<String, DataType>> {
     let head = tuple((ws(tag("field_types")), ws(tag("{"))));
     let tail = ws(tag("}"));
     let parser = many1(schema_entry_parser);
@@ -75,7 +78,7 @@ pub fn schema_parser(input: &str) -> IResult<&str, HashMap<String, DataType>> {
     delimited(head, parser_map, tail)(input)
 }
 
-pub fn schema_entry_parser(input: &str) -> IResult<&str, (&str, DataType)> {
+fn schema_entry_parser(input: &str) -> IResult<&str, (&str, DataType)> {
     let head = ws(tag("("));
     let tail = ws(tag(")"));
     let parser = separated_pair(string_parser, ws(tag(":")), data_type_parser);
@@ -84,11 +87,11 @@ pub fn schema_entry_parser(input: &str) -> IResult<&str, (&str, DataType)> {
 }
 
 /// strings have the shape (double quotes) string (w/o double quotes) (double quotes)
-pub fn string_parser(input: &str) -> IResult<&str, &str> {
+fn string_parser(input: &str) -> IResult<&str, &str> {
     delimited(char('"'), take_until("\""), char('"'))(input)
 }
 
-pub fn time_unit_parser(input: &str) -> IResult<&str, TimeUnit> {
+fn time_unit_parser(input: &str) -> IResult<&str, TimeUnit> {
     let nanoseconds_parser = map(ws(tag("Nanoseconds")), |_| TimeUnit::Nanoseconds);
     let microseconds_parser = map(ws(tag("Microseconds")), |_| TimeUnit::Microseconds);
     let milliseconds_parser = map(ws(tag("Milliseconds")), |_| TimeUnit::Milliseconds);
@@ -97,7 +100,7 @@ pub fn time_unit_parser(input: &str) -> IResult<&str, TimeUnit> {
 }
 
 /// A parser for data types
-pub fn data_type_parser(input: &str) -> IResult<&str, DataType> {
+fn data_type_parser(input: &str) -> IResult<&str, DataType> {
     let boolean_type_parser = map(ws(tag("Boolean")), |_| DataType::Boolean);
     let string_type_parser = map(ws(tag("String")), |_| DataType::String);
     let uint8_type_parser = map(ws(tag("UInt8")), |_| DataType::UInt8);
@@ -146,6 +149,65 @@ pub fn data_type_parser(input: &str) -> IResult<&str, DataType> {
         duration_type_parser,
         date_type_parser,
     ))(input)
+}
+
+#[test]
+fn ast_parser_test() {
+    let mut expected_schema = HashMap::new();
+    expected_schema.insert("asdf".to_string(), DataType::Date);
+
+    assert_eq!(
+        ast_parser("load_files CSV(file_name = \"dir/fn.csv\", field_types{ (\"asdf\": Date)} )"),
+        Ok((
+            "",
+            Ast {
+                loadable_filenames: vec![LoadableFormatData::CSV(CSVData {
+                    filename: "dir/fn.csv".to_string(),
+                    separator: None,
+                    field_types: Some(expected_schema)
+                })]
+            }
+        ))
+    );
+}
+
+#[test]
+fn file_descriptor_parser_test() {
+    let mut expected_schema = HashMap::new();
+    expected_schema.insert("asdf".to_string(), DataType::Date);
+
+    assert_eq!(
+        file_descriptor_parser(
+            "CSV ( file_name = \"dir/fn.csv\", field_types{ ( \"asdf\": Date ) } )"
+        ),
+        Ok((
+            "",
+            LoadableFormatData::CSV(CSVData {
+                filename: "dir/fn.csv".to_string(),
+                separator: None,
+                field_types: Some(expected_schema)
+            })
+        ))
+    )
+}
+
+#[test]
+fn schema_entry_parser_test() {
+    assert_eq!(
+        schema_entry_parser("( \"asdf\": Boolean )"),
+        Ok(("", ("asdf", DataType::Boolean)))
+    );
+}
+
+#[test]
+fn schema_parser_test() {
+    let mut expected_result = HashMap::new();
+    expected_result.insert("asdf".to_string(), DataType::String);
+
+    assert_eq!(
+        schema_parser("field_types{ (\"asdf\": String) }"),
+        Ok(("", expected_result))
+    );
 }
 
 #[test]
