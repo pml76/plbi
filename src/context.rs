@@ -1,33 +1,9 @@
 use crate::{
     error::PlbiError,
-    grammar::ast::{Ast, LoadableFormatData},
+    grammar::ast::{Ast, DataTypeDescriptor, LoadableFormatData},
 };
-use chrono::naive::{NaiveDate, NaiveDateTime, NaiveTime};
-use core::time::Duration;
-use polars::frame::DataFrame;
-use polars::prelude::*;
+use polars::{frame::DataFrame, prelude::*};
 use std::{collections::HashMap, ffi::OsStr, path::Path};
-
-pub enum DataValue {
-    StringValue(String),
-    UInt8Value(u8),
-    UInt16Value(u16),
-    UInt32Value(u32),
-    UInt64Value(u64),
-    Int8Value(i8),
-    Int16Value(i16),
-    Int32Value(i32),
-    Int64Value(i64),
-    Float32Value(f32),
-    Float64Value(f64),
-    DateValue(NaiveDate),
-    TimeValue(NaiveTime),
-    DateTimeValue(NaiveDateTime),
-    BooleanValue(bool),
-    BinaryValue(Vec<u8>),
-    BinaryOffsetValue(Vec<u8>),
-    DurationValue(Duration),
-}
 
 pub struct Context {
     pub base_tables: HashMap<String, DataFrame>,
@@ -69,7 +45,31 @@ fn load_base_tables(
                     element
                         .iter()
                         .map(|(k, v)| {
-                            let dtype = v.clone();
+                            let dtype = match v {
+                                &DataTypeDescriptor::Time(_)
+                                | &DataTypeDescriptor::Date(_)
+                                | &DataTypeDescriptor::Datetime(_, _, _) => DataType::String,
+                                &DataTypeDescriptor::Categorical => {
+                                    DataType::Categorical(None, Default::default())
+                                }
+                                &DataTypeDescriptor::UInt8 => DataType::UInt8,
+                                &DataTypeDescriptor::UInt16 => DataType::UInt16,
+                                &DataTypeDescriptor::UInt32 => DataType::UInt32,
+                                &DataTypeDescriptor::UInt64 => DataType::UInt64,
+                                &DataTypeDescriptor::Int8 => DataType::Int8,
+                                &DataTypeDescriptor::Int16 => DataType::Int16,
+                                &DataTypeDescriptor::Int32 => DataType::Int32,
+                                &DataTypeDescriptor::Int64 => DataType::Int64,
+                                &DataTypeDescriptor::Float32 => DataType::Float32,
+                                &DataTypeDescriptor::Float64 => DataType::Float64,
+                                &DataTypeDescriptor::String => DataType::String,
+                                &DataTypeDescriptor::Binary => DataType::Binary,
+                                &DataTypeDescriptor::BinaryOffset => DataType::BinaryOffset,
+                                &DataTypeDescriptor::Duration(tu) => DataType::Duration(tu),
+                                &DataTypeDescriptor::Boolean => DataType::Boolean,
+                                &DataTypeDescriptor::Unknown => DataType::Unknown,
+                                &DataTypeDescriptor::Null => DataType::Null,
+                            };
                             Field::new(k, dtype)
                         })
                         .collect::<Schema>()
@@ -78,6 +78,7 @@ fn load_base_tables(
                 let df = reader
                     .unwrap()
                     .has_header(true) // Assume the file has headers
+                    .with_try_parse_dates(true) // try to read dates as such
                     .with_dtypes(schema.map(Arc::new))
                     // .infer_schema(None) // Scan entire file to determine the schema
                     .finish();
@@ -144,7 +145,7 @@ fn generate_context_test() {
     use crate::grammar::ast::*;
 
     let mut online_sales_field_types = HashMap::new();
-    online_sales_field_types.insert("SalesOrderNumber".to_string(), DataType::String);
+    online_sales_field_types.insert("SalesOrderNumber".to_string(), DataTypeDescriptor::String);
 
     let ast = Ast {
         loadable_filenames: vec![
@@ -316,7 +317,7 @@ fn parse_to_context_test() {
     assert!(parse_result.is_ok());
 
     let mut online_sales_field_types = HashMap::new();
-    online_sales_field_types.insert("SalesOrderNumber".to_string(), DataType::String);
+    online_sales_field_types.insert("SalesOrderNumber".to_string(), DataTypeDescriptor::String);
 
     let expected_ast = Ast {
         loadable_filenames: vec![

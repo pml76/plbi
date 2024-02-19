@@ -10,9 +10,9 @@ use nom::{
     sequence::{delimited, pair, preceded, separated_pair, tuple},
     IResult, Parser,
 };
-use polars::datatypes::{DataType, TimeUnit};
+use polars::datatypes::TimeUnit;
 
-use super::ast::{Ast, CSVData, LoadableFormatData};
+use super::ast::{Ast, CSVData, DataTypeDescriptor, LoadableFormatData};
 
 /// A combinator that takes a parser `inner` and produces a parser that also consumes both leading and
 /// trailing whitespace, returning the output of `inner`.
@@ -62,7 +62,7 @@ fn file_descriptor_parser(input: &str) -> IResult<&str, LoadableFormatData> {
     csv_map(input)
 }
 
-fn schema_parser(input: &str) -> IResult<&str, HashMap<String, DataType>> {
+fn schema_parser(input: &str) -> IResult<&str, HashMap<String, DataTypeDescriptor>> {
     let head = tuple((ws(tag("field_types")), ws(tag("{"))));
     let tail = ws(tag("}"));
     let parser = many1(schema_entry_parser);
@@ -78,7 +78,7 @@ fn schema_parser(input: &str) -> IResult<&str, HashMap<String, DataType>> {
     delimited(head, parser_map, tail)(input)
 }
 
-fn schema_entry_parser(input: &str) -> IResult<&str, (&str, DataType)> {
+fn schema_entry_parser(input: &str) -> IResult<&str, (&str, DataTypeDescriptor)> {
     let head = ws(tag("("));
     let tail = ws(tag(")"));
     let parser = separated_pair(string_parser, ws(tag(":")), data_type_parser);
@@ -100,37 +100,48 @@ fn time_unit_parser(input: &str) -> IResult<&str, TimeUnit> {
 }
 
 /// A parser for data types
-fn data_type_parser(input: &str) -> IResult<&str, DataType> {
-    let boolean_type_parser = map(ws(tag("Boolean")), |_| DataType::Boolean);
-    let string_type_parser = map(ws(tag("String")), |_| DataType::String);
-    let uint8_type_parser = map(ws(tag("UInt8")), |_| DataType::UInt8);
-    let uint16_type_parser = map(ws(tag("UInt16")), |_| DataType::UInt16);
-    let uint32_type_parser = map(ws(tag("UInt32")), |_| DataType::UInt32);
-    let uint64_type_parser = map(ws(tag("UInt64")), |_| DataType::UInt64);
-    let int8_type_parser = map(ws(tag("Int8")), |_| DataType::Int8);
-    let int16_type_parser = map(ws(tag("Int16")), |_| DataType::Int16);
-    let int32_type_parser = map(ws(tag("Int32")), |_| DataType::Int32);
-    let int64_type_parser = map(ws(tag("Int64")), |_| DataType::Int64);
+fn data_type_parser(input: &str) -> IResult<&str, DataTypeDescriptor> {
+    let boolean_type_parser = map(ws(tag("Boolean")), |_| DataTypeDescriptor::Boolean);
+    let string_type_parser = map(ws(tag("String")), |_| DataTypeDescriptor::String);
+    let uint8_type_parser = map(ws(tag("UInt8")), |_| DataTypeDescriptor::UInt8);
+    let uint16_type_parser = map(ws(tag("UInt16")), |_| DataTypeDescriptor::UInt16);
+    let uint32_type_parser = map(ws(tag("UInt32")), |_| DataTypeDescriptor::UInt32);
+    let uint64_type_parser = map(ws(tag("UInt64")), |_| DataTypeDescriptor::UInt64);
+    let int8_type_parser = map(ws(tag("Int8")), |_| DataTypeDescriptor::Int8);
+    let int16_type_parser = map(ws(tag("Int16")), |_| DataTypeDescriptor::Int16);
+    let int32_type_parser = map(ws(tag("Int32")), |_| DataTypeDescriptor::Int32);
+    let int64_type_parser = map(ws(tag("Int64")), |_| DataTypeDescriptor::Int64);
 
-    let float32_type_parser = map(ws(tag("Float32")), |_| DataType::Float32);
-    let float64_type_parser = map(ws(tag("Float64")), |_| DataType::Float64);
-    let binary_type_parser = map(ws(tag("Binary")), |_| DataType::Binary);
-    let binary_offset_type_parser = map(ws(tag("BinaryOffset")), |_| DataType::BinaryOffset);
-    let date_type_parser = map(ws(tag("Date")), |_| DataType::Date);
-    let time_type_parser = map(ws(tag("Time")), |_| DataType::Time);
-    let null_type_parser = map(ws(tag("Null")), |_| DataType::Null);
-    let unknown_type_parser = map(ws(tag("Unknown")), |_| DataType::Unknown);
-    //let enum_type_parser = map(ws(tag("Enum")), |_| DataType::Enum);
-    // let categorical_type_parser = map(ws(tag("Categorical")),|_| DataType::Categortical)
-    let datetime_type_parser = map(pair(ws(tag("Datetime")), ws(time_unit_parser)), |(_, d)| {
-        DataType::Datetime(d, None)
+    let float32_type_parser = map(ws(tag("Float32")), |_| DataTypeDescriptor::Float32);
+    let float64_type_parser = map(ws(tag("Float64")), |_| DataTypeDescriptor::Float64);
+    let binary_type_parser = map(ws(tag("Binary")), |_| DataTypeDescriptor::Binary);
+    let binary_offset_type_parser = map(ws(tag("BinaryOffset")), |_| {
+        DataTypeDescriptor::BinaryOffset
     });
+    let date_type_parser = map(pair(ws(tag("Date")), ws(string_parser)), |(_, f)| {
+        DataTypeDescriptor::Date(f.to_string())
+    });
+    let time_type_parser = map(pair(ws(tag("Time")), ws(string_parser)), |(_, f)| {
+        DataTypeDescriptor::Time(f.to_string())
+    });
+    let null_type_parser = map(ws(tag("Null")), |_| DataTypeDescriptor::Null);
+    let unknown_type_parser = map(ws(tag("Unknown")), |_| DataTypeDescriptor::Unknown);
+    let categorical_type_parser = map(ws(tag("Categorical")), |_| DataTypeDescriptor::Categorical);
+    let datetime_type_parser = map(
+        tuple((
+            ws(tag("Datetime")),
+            ws(string_parser),
+            ws(time_unit_parser),
+            ws(opt(string_parser)),
+        )),
+        |(_, f, d, tz)| DataTypeDescriptor::Datetime(f.to_string(), d, tz.map(|x| x.to_string())),
+    );
     let duration_type_parser = map(pair(ws(tag("Duration")), ws(time_unit_parser)), |(_, d)| {
-        DataType::Duration(d)
+        DataTypeDescriptor::Duration(d)
     });
 
     alt((
-        // enum_type_parser,
+        categorical_type_parser,
         boolean_type_parser,
         uint8_type_parser,
         uint16_type_parser,
@@ -157,10 +168,15 @@ fn data_type_parser(input: &str) -> IResult<&str, DataType> {
 #[test]
 fn ast_parser_test() {
     let mut expected_schema = HashMap::new();
-    expected_schema.insert("asdf".to_string(), DataType::Date);
+    expected_schema.insert(
+        "asdf".to_string(),
+        DataTypeDescriptor::Date("%Y".to_string()),
+    );
 
     assert_eq!(
-        ast_parser("load_files CSV(file_name = \"dir/fn.csv\", field_types{ (\"asdf\": Date)} )"),
+        ast_parser(
+            "load_files CSV(file_name = \"dir/fn.csv\", field_types{ (\"asdf\": Date \"%Y\")} )"
+        ),
         Ok((
             "",
             Ast {
@@ -177,11 +193,14 @@ fn ast_parser_test() {
 #[test]
 fn file_descriptor_parser_test() {
     let mut expected_schema = HashMap::new();
-    expected_schema.insert("asdf".to_string(), DataType::Date);
+    expected_schema.insert(
+        "asdf".to_string(),
+        DataTypeDescriptor::Date("%Y".to_string()),
+    );
 
     assert_eq!(
         file_descriptor_parser(
-            "CSV ( file_name = \"dir/fn.csv\", field_types{ ( \"asdf\": Date ) } )"
+            "CSV ( file_name = \"dir/fn.csv\", field_types{ ( \"asdf\": Date \"%Y\") } )"
         ),
         Ok((
             "",
@@ -198,14 +217,14 @@ fn file_descriptor_parser_test() {
 fn schema_entry_parser_test() {
     assert_eq!(
         schema_entry_parser("( \"asdf\": Boolean )"),
-        Ok(("", ("asdf", DataType::Boolean)))
+        Ok(("", ("asdf", DataTypeDescriptor::Boolean)))
     );
 }
 
 #[test]
 fn schema_parser_test() {
     let mut expected_result = HashMap::new();
-    expected_result.insert("asdf".to_string(), DataType::String);
+    expected_result.insert("asdf".to_string(), DataTypeDescriptor::String);
 
     assert_eq!(
         schema_parser("field_types{ (\"asdf\": String) }"),
@@ -223,51 +242,105 @@ fn string_parser_test() {
 
 #[test]
 fn data_type_parser_test() {
-    assert_eq!(data_type_parser("Boolean"), Ok(("", DataType::Boolean)));
-    assert_eq!(data_type_parser("UInt8"), Ok(("", DataType::UInt8)));
-    assert_eq!(data_type_parser("UInt16"), Ok(("", DataType::UInt16)));
-    assert_eq!(data_type_parser("UInt32"), Ok(("", DataType::UInt32)));
-    assert_eq!(data_type_parser("UInt64"), Ok(("", DataType::UInt64)));
-    assert_eq!(data_type_parser("Int8"), Ok(("", DataType::Int8)));
-    assert_eq!(data_type_parser("Int16"), Ok(("", DataType::Int16)));
-    assert_eq!(data_type_parser("Int32"), Ok(("", DataType::Int32)));
-    assert_eq!(data_type_parser("Int64"), Ok(("", DataType::Int64)));
-    assert_eq!(data_type_parser("Float32"), Ok(("", DataType::Float32)));
-    assert_eq!(data_type_parser("Float64"), Ok(("", DataType::Float64)));
-    assert_eq!(data_type_parser("String"), Ok(("", DataType::String)));
-    assert_eq!(data_type_parser("Binary"), Ok(("", DataType::Binary)));
+    assert_eq!(
+        data_type_parser("Boolean"),
+        Ok(("", DataTypeDescriptor::Boolean))
+    );
+    assert_eq!(
+        data_type_parser("UInt8"),
+        Ok(("", DataTypeDescriptor::UInt8))
+    );
+    assert_eq!(
+        data_type_parser("UInt16"),
+        Ok(("", DataTypeDescriptor::UInt16))
+    );
+    assert_eq!(
+        data_type_parser("UInt32"),
+        Ok(("", DataTypeDescriptor::UInt32))
+    );
+    assert_eq!(
+        data_type_parser("UInt64"),
+        Ok(("", DataTypeDescriptor::UInt64))
+    );
+    assert_eq!(data_type_parser("Int8"), Ok(("", DataTypeDescriptor::Int8)));
+    assert_eq!(
+        data_type_parser("Int16"),
+        Ok(("", DataTypeDescriptor::Int16))
+    );
+    assert_eq!(
+        data_type_parser("Int32"),
+        Ok(("", DataTypeDescriptor::Int32))
+    );
+    assert_eq!(
+        data_type_parser("Int64"),
+        Ok(("", DataTypeDescriptor::Int64))
+    );
+    assert_eq!(
+        data_type_parser("Float32"),
+        Ok(("", DataTypeDescriptor::Float32))
+    );
+    assert_eq!(
+        data_type_parser("Float64"),
+        Ok(("", DataTypeDescriptor::Float64))
+    );
+    assert_eq!(
+        data_type_parser("String"),
+        Ok(("", DataTypeDescriptor::String))
+    );
+    assert_eq!(
+        data_type_parser("Binary"),
+        Ok(("", DataTypeDescriptor::Binary))
+    );
     assert_eq!(
         data_type_parser("BinaryOffset"),
-        Ok(("", DataType::BinaryOffset))
+        Ok(("", DataTypeDescriptor::BinaryOffset))
     );
-    assert_eq!(data_type_parser("Date"), Ok(("", DataType::Date)));
+    assert_eq!(
+        data_type_parser("Date \"%Y\""),
+        Ok(("", DataTypeDescriptor::Date("%Y".to_string())))
+    );
 
     assert_eq!(
-        data_type_parser("Datetime Nanoseconds"),
-        Ok(("", DataType::Datetime(TimeUnit::Nanoseconds, None)))
+        data_type_parser("Datetime \"%Y\" Nanoseconds"),
+        Ok((
+            "",
+            DataTypeDescriptor::Datetime("%Y".to_string(), TimeUnit::Nanoseconds, None)
+        ))
     );
     assert_eq!(
-        data_type_parser("Datetime Microseconds"),
-        Ok(("", DataType::Datetime(TimeUnit::Microseconds, None)))
+        data_type_parser("Datetime \"%Y\" Microseconds"),
+        Ok((
+            "",
+            DataTypeDescriptor::Datetime("%Y".to_string(), TimeUnit::Microseconds, None)
+        ))
     );
     assert_eq!(
-        data_type_parser("Datetime Milliseconds"),
-        Ok(("", DataType::Datetime(TimeUnit::Milliseconds, None)))
+        data_type_parser("Datetime \"%Y\" Milliseconds"),
+        Ok((
+            "",
+            DataTypeDescriptor::Datetime("%Y".to_string(), TimeUnit::Milliseconds, None)
+        ))
     );
 
     assert_eq!(
         data_type_parser("Duration Nanoseconds"),
-        Ok(("", DataType::Duration(TimeUnit::Nanoseconds)))
+        Ok(("", DataTypeDescriptor::Duration(TimeUnit::Nanoseconds)))
     );
     assert_eq!(
         data_type_parser("Duration Microseconds"),
-        Ok(("", DataType::Duration(TimeUnit::Microseconds)))
+        Ok(("", DataTypeDescriptor::Duration(TimeUnit::Microseconds)))
     );
     assert_eq!(
         data_type_parser("Duration Milliseconds"),
-        Ok(("", DataType::Duration(TimeUnit::Milliseconds)))
+        Ok(("", DataTypeDescriptor::Duration(TimeUnit::Milliseconds)))
     );
-    assert_eq!(data_type_parser("Time"), Ok(("", DataType::Time)));
-    assert_eq!(data_type_parser("Null"), Ok(("", DataType::Null)));
-    assert_eq!(data_type_parser("Unknown"), Ok(("", DataType::Unknown)));
+    assert_eq!(
+        data_type_parser("Time \"%Y\""),
+        Ok(("", DataTypeDescriptor::Time("%Y".to_string())))
+    );
+    assert_eq!(data_type_parser("Null"), Ok(("", DataTypeDescriptor::Null)));
+    assert_eq!(
+        data_type_parser("Unknown"),
+        Ok(("", DataTypeDescriptor::Unknown))
+    );
 }
