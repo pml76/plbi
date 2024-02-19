@@ -1,13 +1,33 @@
 use crate::{
     error::PlbiError,
-    grammar::{
-        ast::{Ast, LoadableFormatData},
-        parser::ast_parser,
-    },
+    grammar::ast::{Ast, LoadableFormatData},
 };
+use chrono::naive::{NaiveDate, NaiveDateTime, NaiveTime};
+use core::time::Duration;
 use polars::frame::DataFrame;
 use polars::prelude::*;
 use std::{collections::HashMap, ffi::OsStr, path::Path};
+
+pub enum DataValue {
+    StringValue(String),
+    UInt8Value(u8),
+    UInt16Value(u16),
+    UInt32Value(u32),
+    UInt64Value(u64),
+    Int8Value(i8),
+    Int16Value(i16),
+    Int32Value(i32),
+    Int64Value(i64),
+    Float32Value(f32),
+    Float64Value(f64),
+    DateValue(NaiveDate),
+    TimeValue(NaiveTime),
+    DateTimeValue(NaiveDateTime),
+    BooleanValue(bool),
+    BinaryValue(Vec<u8>),
+    BinaryOffsetValue(Vec<u8>),
+    DurationValue(Duration),
+}
 
 pub struct Context {
     pub base_tables: HashMap<String, DataFrame>,
@@ -261,7 +281,7 @@ fn generate_context_test() {
 
 #[test]
 fn parse_to_context_test() {
-    use crate::grammar::ast::*;
+    use crate::grammar::{ast::*, parser::ast_parser};
 
     let string_to_parse = "load_files 
     CSV(file_name = \"contoso/DimAccount.csv\")

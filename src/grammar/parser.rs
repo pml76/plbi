@@ -120,6 +120,8 @@ fn data_type_parser(input: &str) -> IResult<&str, DataType> {
     let time_type_parser = map(ws(tag("Time")), |_| DataType::Time);
     let null_type_parser = map(ws(tag("Null")), |_| DataType::Null);
     let unknown_type_parser = map(ws(tag("Unknown")), |_| DataType::Unknown);
+    //let enum_type_parser = map(ws(tag("Enum")), |_| DataType::Enum);
+    // let categorical_type_parser = map(ws(tag("Categorical")),|_| DataType::Categortical)
     let datetime_type_parser = map(pair(ws(tag("Datetime")), ws(time_unit_parser)), |(_, d)| {
         DataType::Datetime(d, None)
     });
@@ -128,6 +130,7 @@ fn data_type_parser(input: &str) -> IResult<&str, DataType> {
     });
 
     alt((
+        // enum_type_parser,
         boolean_type_parser,
         uint8_type_parser,
         uint16_type_parser,

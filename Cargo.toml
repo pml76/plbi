@@ -22,5 +22,6 @@ cxx-qt-build = { version = "0.6", features = [ "link_qt_object_files" ] }
 cxx-qt = "0.6.0"
 cxx = "1.0.95"
 cxx-qt-lib = "0.6"
-polars = { version = "0.37.0", features = ["lazy", "csv", "json", "parquet"] }
+polars = { version = "0.37.0", features = ["lazy", "csv", "json", "parquet", "dtype-categorical"] }
 nom = "7.1.3"
+chrono = "0.4.33"
