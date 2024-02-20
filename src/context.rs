@@ -16,7 +16,7 @@ pub struct Context<'a> {
 }
 
 impl<'a> Context<'a> {
-    pub fn convert_ast<'b>(ast: &'b Ast) -> Result<Context<'a>, TldrError> {
+    pub fn convert_ast(ast: &'a Ast) -> Result<Context<'a>, TldrError> {
         let base_tables = load_base_tables(&ast.loadable_filenames)?;
         let filter_context: HashMap<TableColumn<'a>, AnyValue<'a>> = HashMap::new();
         Ok(Context {
