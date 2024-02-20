@@ -119,10 +119,10 @@ fn data_type_parser(input: &str) -> IResult<&str, DataTypeDescriptor> {
         DataTypeDescriptor::BinaryOffset
     });
     let date_type_parser = map(pair(ws(tag("Date")), ws(string_parser)), |(_, f)| {
-        DataTypeDescriptor::Date(f.to_string())
+        DataTypeDescriptor::Date(f)
     });
     let time_type_parser = map(pair(ws(tag("Time")), ws(string_parser)), |(_, f)| {
-        DataTypeDescriptor::Time(f.to_string())
+        DataTypeDescriptor::Time(f)
     });
     let null_type_parser = map(ws(tag("Null")), |_| DataTypeDescriptor::Null);
     let unknown_type_parser = map(ws(tag("Unknown")), |_| DataTypeDescriptor::Unknown);
@@ -134,7 +134,7 @@ fn data_type_parser(input: &str) -> IResult<&str, DataTypeDescriptor> {
             ws(time_unit_parser),
             ws(opt(string_parser)),
         )),
-        |(_, f, d, tz)| DataTypeDescriptor::Datetime(f.to_string(), d, tz.map(|x| x.to_string())),
+        |(_, f, d, tz)| DataTypeDescriptor::Datetime(f, d, tz.map(|x| x.to_string())),
     );
     let duration_type_parser = map(pair(ws(tag("Duration")), ws(time_unit_parser)), |(_, d)| {
         DataTypeDescriptor::Duration(d)
@@ -168,10 +168,7 @@ fn data_type_parser(input: &str) -> IResult<&str, DataTypeDescriptor> {
 #[test]
 fn ast_parser_test() {
     let mut expected_schema = HashMap::new();
-    expected_schema.insert(
-        "asdf".to_string(),
-        DataTypeDescriptor::Date("%Y".to_string()),
-    );
+    expected_schema.insert("asdf".to_string(), DataTypeDescriptor::Date("%Y"));
 
     assert_eq!(
         ast_parser(
@@ -193,10 +190,7 @@ fn ast_parser_test() {
 #[test]
 fn file_descriptor_parser_test() {
     let mut expected_schema = HashMap::new();
-    expected_schema.insert(
-        "asdf".to_string(),
-        DataTypeDescriptor::Date("%Y".to_string()),
-    );
+    expected_schema.insert("asdf".to_string(), DataTypeDescriptor::Date("%Y"));
 
     assert_eq!(
         file_descriptor_parser(
@@ -297,28 +291,28 @@ fn data_type_parser_test() {
     );
     assert_eq!(
         data_type_parser("Date \"%Y\""),
-        Ok(("", DataTypeDescriptor::Date("%Y".to_string())))
+        Ok(("", DataTypeDescriptor::Date("%Y")))
     );
 
     assert_eq!(
         data_type_parser("Datetime \"%Y\" Nanoseconds"),
         Ok((
             "",
-            DataTypeDescriptor::Datetime("%Y".to_string(), TimeUnit::Nanoseconds, None)
+            DataTypeDescriptor::Datetime("%Y", TimeUnit::Nanoseconds, None)
         ))
     );
     assert_eq!(
         data_type_parser("Datetime \"%Y\" Microseconds"),
         Ok((
             "",
-            DataTypeDescriptor::Datetime("%Y".to_string(), TimeUnit::Microseconds, None)
+            DataTypeDescriptor::Datetime("%Y", TimeUnit::Microseconds, None)
         ))
     );
     assert_eq!(
         data_type_parser("Datetime \"%Y\" Milliseconds"),
         Ok((
             "",
-            DataTypeDescriptor::Datetime("%Y".to_string(), TimeUnit::Milliseconds, None)
+            DataTypeDescriptor::Datetime("%Y", TimeUnit::Milliseconds, None)
         ))
     );
 
@@ -336,7 +330,7 @@ fn data_type_parser_test() {
     );
     assert_eq!(
         data_type_parser("Time \"%Y\""),
-        Ok(("", DataTypeDescriptor::Time("%Y".to_string())))
+        Ok(("", DataTypeDescriptor::Time("%Y")))
     );
     assert_eq!(data_type_parser("Null"), Ok(("", DataTypeDescriptor::Null)));
     assert_eq!(

@@ -1,25 +1,35 @@
 use crate::{
-    error::PlbiError,
+    error::TldrError,
     grammar::ast::{Ast, DataTypeDescriptor, LoadableFormatData},
 };
 use polars::{frame::DataFrame, prelude::*};
 use std::{collections::HashMap, ffi::OsStr, path::Path};
 
-pub struct Context {
-    pub base_tables: HashMap<String, DataFrame>,
+pub struct TableColumn<'a> {
+    pub table: &'a str,
+    pub column: &'a str,
 }
 
-impl Context {
-    pub fn convert_ast(ast: &Ast) -> Result<Context, PlbiError> {
+pub struct Context<'a> {
+    pub base_tables: HashMap<String, DataFrame>,
+    pub filter_context: HashMap<TableColumn<'a>, AnyValue<'a>>,
+}
+
+impl<'a> Context<'a> {
+    pub fn convert_ast<'b>(ast: &'b Ast) -> Result<Context<'a>, TldrError> {
         let base_tables = load_base_tables(&ast.loadable_filenames)?;
-        Ok(Context { base_tables })
+        let filter_context: HashMap<TableColumn<'a>, AnyValue<'a>> = HashMap::new();
+        Ok(Context {
+            base_tables,
+            filter_context,
+        })
     }
 }
 
 // load csv, parquet, and json tables...
 fn load_base_tables(
     loadable_filenames: &Vec<LoadableFormatData>,
-) -> Result<HashMap<String, DataFrame>, PlbiError> {
+) -> Result<HashMap<String, DataFrame>, TldrError> {
     let mut ret = HashMap::new();
 
     for filename in loadable_filenames {
@@ -27,7 +37,7 @@ fn load_base_tables(
             let path = Path::new(&data.filename);
             if !path.exists() {
                 let s = format!("{}", path.display());
-                return Err(PlbiError::PlbiFileNotfound(s));
+                return Err(TldrError::TldrFileNotfound(s));
             }
             if path.extension() == Some(OsStr::new("csv"))
                 || path.extension() == Some(OsStr::new("CSV"))
@@ -35,7 +45,7 @@ fn load_base_tables(
                 let reader = CsvReader::from_path(path);
                 if reader.is_err() {
                     let s = format!("{}", path.display());
-                    return Err(PlbiError::PlbiCouldNotReadFile(s));
+                    return Err(TldrError::TldrCouldNotReadFile(s));
                 }
 
                 println!("reading file: {}", path.display());
@@ -88,11 +98,11 @@ fn load_base_tables(
                     println!("{}", polars_error);
 
                     let s = format!("{}", path.display());
-                    return Err(PlbiError::PlbiCouldNotReadFile(s));
+                    return Err(TldrError::TldrCouldNotReadFile(s));
                 }
                 if path.file_stem().is_none() {
                     let s = format!("{}", path.display());
-                    return Err(PlbiError::PlbiFileNameWithoutStem(s));
+                    return Err(TldrError::TldrFileNameWithoutStem(s));
                 }
                 ret.insert(
                     path.file_stem().unwrap().to_str().unwrap().to_string(),

@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
-use polars::datatypes::{DataType, TimeUnit};
+use polars::datatypes::TimeUnit;
 
 #[derive(PartialEq, Debug, Clone)]
-pub enum DataTypeDescriptor {
+pub enum DataTypeDescriptor<'a> {
     UInt8,
     UInt16,
     UInt32,
@@ -22,37 +22,37 @@ pub enum DataTypeDescriptor {
     String,
     Duration(TimeUnit),
 
-    Time(String),
+    Time(&'a str),
     /// parameter of Time() is format string according to
     /// https://docs.rs/chrono/latest/chrono/format/strftime/index.html
-    Date(String),
+    Date(&'a str),
     /// parameter of Date() is format string according to
     /// https://docs.rs/chrono/latest/chrono/format/strftime/index.html
-    Datetime(String, TimeUnit, Option<String>),
+    Datetime(&'a str, TimeUnit, Option<String>),
     /// first parameter of Datetime() is format string according to
     /// https://docs.rs/chrono/latest/chrono/format/strftime/index.html
     Categorical,
 }
 
 #[derive(PartialEq, Debug)]
-pub struct CSVData {
+pub struct CSVData<'a> {
     pub filename: String,
     pub separator: Option<String>,
-    pub field_types: Option<HashMap<String, DataTypeDescriptor>>,
+    pub field_types: Option<HashMap<String, DataTypeDescriptor<'a>>>,
 }
 
 #[derive(PartialEq, Debug)]
-pub enum LoadableFormatData {
-    CSV(CSVData),
+pub enum LoadableFormatData<'a> {
+    CSV(CSVData<'a>),
 }
 
 #[derive(PartialEq, Debug)]
-pub struct Ast {
-    pub loadable_filenames: Vec<LoadableFormatData>,
+pub struct Ast<'a> {
+    pub loadable_filenames: Vec<LoadableFormatData<'a>>,
 }
 
-impl CSVData {
-    pub fn new(filename: String, separator: Option<String>) -> CSVData {
+impl<'a> CSVData<'a> {
+    pub fn new(filename: String, separator: Option<String>) -> CSVData<'a> {
         CSVData {
             filename,
             separator,
