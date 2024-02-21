@@ -2,7 +2,12 @@ use crate::{
     error::TldrError,
     grammar::ast::{Ast, DataTypeDescriptor, LoadableFormatData},
 };
-use polars::{frame::DataFrame, prelude::*};
+use polars::{
+    frame::DataFrame,
+    lazy::dsl::{col, StrptimeOptions},
+    prelude::{AnyValue, Arc, CsvReader, DataType, Field, Schema, SerReader},
+};
+
 use std::{collections::HashMap, ffi::OsStr, path::Path};
 
 pub struct TableColumn<'a> {
@@ -51,7 +56,7 @@ fn load_base_tables(
                 println!("reading file: {}", path.display());
 
                 // get the types right ...
-                let schema = data.field_types.clone().map(|element| {
+                let schema = data.field_types.as_ref().map(|element| {
                     element
                         .iter()
                         .map(|(k, v)| {
@@ -85,7 +90,7 @@ fn load_base_tables(
                         .collect::<Schema>()
                 });
 
-                let df = reader
+                let mut df = reader
                     .unwrap()
                     .has_header(true) // Assume the file has headers
                     .with_try_parse_dates(true) // try to read dates as such
@@ -100,14 +105,26 @@ fn load_base_tables(
                     let s = format!("{}", path.display());
                     return Err(TldrError::TldrCouldNotReadFile(s));
                 }
+
+                let df = df.unwrap();
+                let schema = df.schema();
+
+                for (field_name, field_type) in data.field_types.as_ref().unwrap() {
+                    if schema.get_field(field_name).is_none() {
+                        continue;
+                    }
+                    if let DataTypeDescriptor::Date(f) = field_type {
+                        let q = col(field_name).str().to_date(StrptimeOptions {
+                            format: Some(f.to_string()),
+                            ..Default::default()
+                        });
+                    }
+                }
                 if path.file_stem().is_none() {
                     let s = format!("{}", path.display());
                     return Err(TldrError::TldrFileNameWithoutStem(s));
                 }
-                ret.insert(
-                    path.file_stem().unwrap().to_str().unwrap().to_string(),
-                    df.unwrap(),
-                );
+                ret.insert(path.file_stem().unwrap().to_str().unwrap().to_string(), df);
                 continue;
             }
         }
