@@ -1343,6 +1343,7 @@ dependencies = [
  "atoi_simd",
  "bytes",
  "chrono",
+ "chrono-tz",
  "fast-float",
  "futures",
  "home",
@@ -1504,6 +1505,7 @@ checksum = "7fb7d7527be2aa33baace9000f6772eb9df7cd57ec010a4b273435d2dc1349e8"
 dependencies = [
  "ahash",
  "bytemuck",
+ "chrono",
  "chrono-tz",
  "once_cell",
  "percent-encoding",

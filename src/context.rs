@@ -4,7 +4,10 @@ use crate::{
 };
 use polars::{
     frame::DataFrame,
-    lazy::dsl::{col, StrptimeOptions},
+    lazy::{
+        dsl::{col, StrptimeOptions},
+        frame::IntoLazy,
+    },
     prelude::{AnyValue, Arc, CsvReader, DataType, Field, Schema, SerReader},
 };
 
@@ -90,7 +93,7 @@ fn load_base_tables(
                         .collect::<Schema>()
                 });
 
-                let mut df = reader
+                let df = reader
                     .unwrap()
                     .has_header(true) // Assume the file has headers
                     .with_try_parse_dates(true) // try to read dates as such
@@ -106,7 +109,7 @@ fn load_base_tables(
                     return Err(TldrError::TldrCouldNotReadFile(s));
                 }
 
-                let df = df.unwrap();
+                let mut df = df.unwrap();
                 let schema = df.schema();
 
                 for (field_name, field_type) in data.field_types.as_ref().unwrap() {
@@ -114,10 +117,17 @@ fn load_base_tables(
                         continue;
                     }
                     if let DataTypeDescriptor::Date(f) = field_type {
-                        let q = col(field_name).str().to_date(StrptimeOptions {
+                        let q1 = col(field_name).str().to_date(StrptimeOptions {
                             format: Some(f.to_string()),
                             ..Default::default()
                         });
+                        let q2 = col("*").exclude([field_name]);
+
+                        let tmp = df.clone().lazy().select([q1, q2]).collect();
+                        if tmp.is_err() {
+                            continue;
+                        }
+                        df = tmp.unwrap();
                     }
                 }
                 if path.file_stem().is_none() {
@@ -316,7 +326,7 @@ fn parse_to_context_test() {
     CSV(file_name = \"contoso/DimChannel.csv\")
     CSV(file_name = \"contoso/DimCurrency.csv\")
     CSV(file_name = \"contoso/DimCustomer.csv\")
-    CSV(file_name = \"contoso/DimDate.csv\")
+    CSV(file_name = \"contoso/DimDate.csv\", field_types{ (\"DateKey\": Date \"%Y-%m-%d\") })
     CSV(file_name = \"contoso/DimEmployee.csv\")
     CSV(file_name = \"contoso/DimEntity.csv\")
     CSV(file_name = \"contoso/DimGeography.csv\")
