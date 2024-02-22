@@ -356,6 +356,9 @@ fn parse_to_context_test() {
     let mut online_sales_field_types = HashMap::new();
     online_sales_field_types.insert("SalesOrderNumber".to_string(), DataTypeDescriptor::String);
 
+    let mut dim_date_field_types = HashMap::new();
+    dim_date_field_types.insert("DateKey".to_string(), DataTypeDescriptor::Date("%Y-%m-%d"));
+
     let expected_ast = Ast {
         loadable_filenames: vec![
             LoadableFormatData::CSV(CSVData {
@@ -381,7 +384,7 @@ fn parse_to_context_test() {
             LoadableFormatData::CSV(CSVData {
                 filename: "contoso/DimDate.csv".to_string(),
                 separator: None,
-                field_types: None,
+                field_types: Some(dim_date_field_types),
             }),
             LoadableFormatData::CSV(CSVData {
                 filename: "contoso/DimEmployee.csv".to_string(),
