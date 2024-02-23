@@ -3,9 +3,10 @@ use crate::{
     grammar::ast::{Ast, DataTypeDescriptor, LoadableFormatData},
 };
 use polars::{
+    datatypes::TimeUnit,
     frame::DataFrame,
     lazy::{
-        dsl::{col, StrptimeOptions},
+        dsl::{col, lit, StrptimeOptions},
         frame::IntoLazy,
     },
     prelude::{AnyValue, Arc, CsvReader, DataType, Field, Schema, SerReader},
@@ -120,6 +121,37 @@ fn load_base_tables(
                         if let DataTypeDescriptor::Date(f) = field_type {
                             let q1 = col(field_name).str().to_date(StrptimeOptions {
                                 format: Some(f.to_string()),
+                                ..Default::default()
+                            });
+                            let q2 = col("*").exclude([field_name]);
+
+                            let tmp = df.clone().lazy().select([q1, q2]).collect();
+                            if tmp.is_err() {
+                                continue;
+                            }
+                            df = tmp.unwrap();
+                        }
+                        if let DataTypeDescriptor::Datetime(f, tu, st) = field_type {
+                            let q1 = col(field_name).str().to_datetime(
+                                Some(*tu),
+                                st.clone(),
+                                StrptimeOptions {
+                                    format: Some(f.to_string()),
+                                    ..Default::default()
+                                },
+                                lit("f"),
+                            );
+                            let q2 = col("*").exclude([field_name]);
+
+                            let tmp = df.clone().lazy().select([q1, q2]).collect();
+                            if tmp.is_err() {
+                                continue;
+                            }
+                            df = tmp.unwrap();
+                        }
+                        if let DataTypeDescriptor::Time(format_string) = field_type {
+                            let q1 = col(field_name).str().to_date(StrptimeOptions {
+                                format: Some(format_string.to_string()),
                                 ..Default::default()
                             });
                             let q2 = col("*").exclude([field_name]);
@@ -317,6 +349,41 @@ fn generate_context_test() {
         ],
     };
 
+    assert!(Context::convert_ast(&ast).is_ok());
+}
+
+#[test]
+fn datetime_format_test() {
+    use crate::grammar::{ast::*, parser::ast_parser};
+    let string_to_parse = "load_files 
+    CSV(file_name = \"contoso/FactITSLA.csv\", field_types{ (\"OutageStartTime\": Datetime \"%Y-%m-%d %H:%M:%S\" Nanoseconds) (\"OutageEndTime\": Datetime \"%Y-%m-%d %H:%M:%S\" Nanoseconds ) })
+    ";
+
+    let parse_result = ast_parser(string_to_parse);
+
+    assert!(parse_result.is_ok());
+
+    let mut dim_date_field_types = HashMap::new();
+    dim_date_field_types.insert(
+        "OutageStartTime".to_string(),
+        DataTypeDescriptor::Datetime("%Y-%m-%d %H:%M:%S", TimeUnit::Nanoseconds, None),
+    );
+    dim_date_field_types.insert(
+        "OutageEndTime".to_string(),
+        DataTypeDescriptor::Datetime("%Y-%m-%d %H:%M:%S", TimeUnit::Nanoseconds, None),
+    );
+
+    let expected_ast = Ast {
+        loadable_filenames: vec![LoadableFormatData::CSV(CSVData {
+            filename: "contoso/FactITSLA.csv".to_string(),
+            separator: None,
+            field_types: Some(dim_date_field_types),
+        })],
+    };
+
+    assert_eq!(parse_result, Ok(("", expected_ast)));
+
+    let (_, ast) = parse_result.unwrap();
     assert!(Context::convert_ast(&ast).is_ok());
 }
 
