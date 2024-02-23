@@ -112,24 +112,27 @@ fn load_base_tables(
                 let mut df = df.unwrap();
                 let schema = df.schema();
 
-                for (field_name, field_type) in data.field_types.as_ref().unwrap() {
-                    if schema.get_field(field_name).is_none() {
-                        continue;
-                    }
-                    if let DataTypeDescriptor::Date(f) = field_type {
-                        let q1 = col(field_name).str().to_date(StrptimeOptions {
-                            format: Some(f.to_string()),
-                            ..Default::default()
-                        });
-                        let q2 = col("*").exclude([field_name]);
-
-                        let tmp = df.clone().lazy().select([q1, q2]).collect();
-                        if tmp.is_err() {
+                if data.field_types.is_some() {
+                    for (field_name, field_type) in data.field_types.as_ref().unwrap() {
+                        if schema.get_field(field_name).is_none() {
                             continue;
                         }
-                        df = tmp.unwrap();
+                        if let DataTypeDescriptor::Date(f) = field_type {
+                            let q1 = col(field_name).str().to_date(StrptimeOptions {
+                                format: Some(f.to_string()),
+                                ..Default::default()
+                            });
+                            let q2 = col("*").exclude([field_name]);
+
+                            let tmp = df.clone().lazy().select([q1, q2]).collect();
+                            if tmp.is_err() {
+                                continue;
+                            }
+                            df = tmp.unwrap();
+                        }
                     }
                 }
+
                 if path.file_stem().is_none() {
                     let s = format!("{}", path.display());
                     return Err(TldrError::TldrFileNameWithoutStem(s));
@@ -318,6 +321,34 @@ fn generate_context_test() {
 }
 
 #[test]
+fn date_format_test() {
+    use crate::grammar::{ast::*, parser::ast_parser};
+    let string_to_parse = "load_files 
+    CSV(file_name = \"contoso/DimDate.csv\", field_types{ (\"DateKey\": Date \"%Y-%m-%d\") })
+    ";
+
+    let parse_result = ast_parser(string_to_parse);
+
+    assert!(parse_result.is_ok());
+
+    let mut dim_date_field_types = HashMap::new();
+    dim_date_field_types.insert("DateKey".to_string(), DataTypeDescriptor::Date("%Y-%m-%d"));
+
+    let expected_ast = Ast {
+        loadable_filenames: vec![LoadableFormatData::CSV(CSVData {
+            filename: "contoso/DimDate.csv".to_string(),
+            separator: None,
+            field_types: Some(dim_date_field_types),
+        })],
+    };
+
+    assert_eq!(parse_result, Ok(("", expected_ast)));
+
+    let (_, ast) = parse_result.unwrap();
+    assert!(Context::convert_ast(&ast).is_ok());
+}
+
+#[test]
 fn parse_to_context_test() {
     use crate::grammar::{ast::*, parser::ast_parser};
 
@@ -326,7 +357,7 @@ fn parse_to_context_test() {
     CSV(file_name = \"contoso/DimChannel.csv\")
     CSV(file_name = \"contoso/DimCurrency.csv\")
     CSV(file_name = \"contoso/DimCustomer.csv\")
-    CSV(file_name = \"contoso/DimDate.csv\", field_types{ (\"DateKey\": Date \"%Y-%m-%d\") })
+    CSV(file_name = \"contoso/DimDate.csv\")
     CSV(file_name = \"contoso/DimEmployee.csv\")
     CSV(file_name = \"contoso/DimEntity.csv\")
     CSV(file_name = \"contoso/DimGeography.csv\")
@@ -384,7 +415,7 @@ fn parse_to_context_test() {
             LoadableFormatData::CSV(CSVData {
                 filename: "contoso/DimDate.csv".to_string(),
                 separator: None,
-                field_types: Some(dim_date_field_types),
+                field_types: None,
             }),
             LoadableFormatData::CSV(CSVData {
                 filename: "contoso/DimEmployee.csv".to_string(),
