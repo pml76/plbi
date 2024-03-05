@@ -19,4 +19,3 @@ pub fn main2() {
         app.exec();
     }
 }
-

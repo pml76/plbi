@@ -1,29 +1,15 @@
-[package]
-name = "tldr"
-version = "0.1.0"
-edition = "2021"
+[workspace]
+resolver = "2"
+members = ["crates/*"]
+default-members = ["crates/*"]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-[lib]
-name = "tldr"
-path = "src/lib.rs"
-
-[[bin]]
-name = "tldr"
-path = "src/main.rs"
-
-
-[build-dependencies] 
-# The link_qt_object_files feature is required for statically linking Qt 6.
-cxx-qt-build = { version = "0.6", features = [ "link_qt_object_files" ] }
-
-
-[dependencies]
+[workspace.dependencies]
 cxx-qt = "0.6.0"
 cxx = "1.0.95"
 cxx-qt-lib = "0.6"
-polars = { version = "0.37.0", features = [
-    "lazy",    
+polars = { version = "0.38.1", features = [
+    "lazy",  
+    "sql",  
     "csv",     
     "json",     
     "parquet",     
@@ -100,12 +86,16 @@ polars = { version = "0.37.0", features = [
     ] }
 nom = "7.1.3"
 chrono = "0.4.33"
-connectorx = { version = "0.3.2", features = [
+arrow = "50"
+arrow2 = "0.18"
+
+dbconnector = { version = "0.3.3", path = "crates/dbconnector", features = [
     "src_csv", 
     "src_sqlite", 
-#    "src_postgres", 
+    "src_postgres", 
     "src_oracle", 
-#    "src_mssql", 
-    "dst_arrow", 
-    "dst_arrow2" 
+    "src_mssql", 
+    "dst_arrow",
     ] }
+
+datafusion= { version = "36.0.0", features = ["apache-avro", "avro", "backtrace", "force_hash_collisions", "math_expressions", "num-traits", "serde"]}

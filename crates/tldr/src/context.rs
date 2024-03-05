@@ -3,7 +3,6 @@ use crate::{
     grammar::ast::{Ast, DataTypeDescriptor, LoadableFormatData},
 };
 use polars::{
-    datatypes::TimeUnit,
     frame::DataFrame,
     lazy::{
         dsl::{col, lit, StrptimeOptions},
@@ -355,6 +354,8 @@ fn generate_context_test() {
 #[test]
 fn datetime_format_test() {
     use crate::grammar::{ast::*, parser::ast_parser};
+    use polars::datatypes::TimeUnit;
+
     let string_to_parse = "load_files 
     CSV(file_name = \"contoso/FactITSLA.csv\", field_types{ (\"OutageStartTime\": Datetime \"%Y-%m-%d %H:%M:%S\" Nanoseconds) (\"OutageEndTime\": Datetime \"%Y-%m-%d %H:%M:%S\" Nanoseconds ) })
     ";
