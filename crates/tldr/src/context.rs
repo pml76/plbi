@@ -2,15 +2,11 @@ use crate::{
     error::TldrError,
     grammar::ast::{Ast, DataTypeDescriptor, LoadableFormatData},
 };
-use polars::{
-    frame::DataFrame,
-    lazy::{
-        dsl::{col, lit, StrptimeOptions},
-        frame::IntoLazy,
-    },
-    prelude::{AnyValue, Arc, CsvReader, DataType, Field, Schema, SerReader},
-};
 
+use datafusion::dataframe::DataFrame;
+
+use arrow::datatypes::{DataType, Field, Schema};
+use arrow_csv::reader;
 use std::{collections::HashMap, ffi::OsStr, path::Path};
 
 pub struct TableColumn<'a> {
@@ -18,19 +14,15 @@ pub struct TableColumn<'a> {
     pub column: &'a str,
 }
 
-pub struct Context<'a> {
+pub struct Context {
     pub base_tables: HashMap<String, DataFrame>,
-    pub filter_context: HashMap<TableColumn<'a>, AnyValue<'a>>,
 }
 
-impl<'a> Context<'a> {
-    pub fn convert_ast(ast: &'a Ast) -> Result<Context<'a>, TldrError> {
+impl<'a> Context {
+    pub fn convert_ast(ast: &'a Ast) -> Result<Context, TldrError> {
         let base_tables = load_base_tables(&ast.loadable_filenames)?;
-        let filter_context: HashMap<TableColumn<'a>, AnyValue<'a>> = HashMap::new();
-        Ok(Context {
-            base_tables,
-            filter_context,
-        })
+
+        Ok(Context { base_tables })
     }
 }
 
@@ -50,26 +42,16 @@ fn load_base_tables(
             if path.extension() == Some(OsStr::new("csv"))
                 || path.extension() == Some(OsStr::new("CSV"))
             {
-                let reader = CsvReader::from_path(path);
-                if reader.is_err() {
-                    let s = format!("{}", path.display());
-                    return Err(TldrError::TldrCouldNotReadFile(s));
-                }
-
                 println!("reading file: {}", path.display());
 
                 // get the types right ...
-                let schema = data.field_types.as_ref().map(|element| {
-                    element
+                let schema = Schema::new(data.field_types
                         .iter()
                         .map(|(k, v)| {
                             let dtype = match v {
                                 &DataTypeDescriptor::Time(_)
                                 | &DataTypeDescriptor::Date(_)
-                                | &DataTypeDescriptor::Datetime(_, _, _) => DataType::String,
-                                &DataTypeDescriptor::Categorical => {
-                                    DataType::Categorical(None, Default::default())
-                                }
+                                | &DataTypeDescriptor::Datetime(_, _, _) => DataType::Utf8,
                                 &DataTypeDescriptor::UInt8 => DataType::UInt8,
                                 &DataTypeDescriptor::UInt16 => DataType::UInt16,
                                 &DataTypeDescriptor::UInt32 => DataType::UInt32,
@@ -80,26 +62,17 @@ fn load_base_tables(
                                 &DataTypeDescriptor::Int64 => DataType::Int64,
                                 &DataTypeDescriptor::Float32 => DataType::Float32,
                                 &DataTypeDescriptor::Float64 => DataType::Float64,
-                                &DataTypeDescriptor::String => DataType::String,
+                                &DataTypeDescriptor::String => DataType::Utf8,
                                 &DataTypeDescriptor::Binary => DataType::Binary,
-                                &DataTypeDescriptor::BinaryOffset => DataType::BinaryOffset,
                                 &DataTypeDescriptor::Duration(tu) => DataType::Duration(tu),
                                 &DataTypeDescriptor::Boolean => DataType::Boolean,
-                                &DataTypeDescriptor::Unknown => DataType::Unknown,
                                 &DataTypeDescriptor::Null => DataType::Null,
                             };
-                            Field::new(k, dtype)
+                            Field::new(k, dtype, true)
                         })
-                        .collect::<Schema>()
-                });
+                        .collect::<Vec<_>>());
 
-                let df = reader
-                    .unwrap()
-                    .has_header(true) // Assume the file has headers
-                    .with_try_parse_dates(true) // try to read dates as such
-                    .with_dtypes(schema.map(Arc::new))
-                    // .infer_schema(None) // Scan entire file to determine the schema
-                    .finish();
+                let df = reader()
 
                 if df.is_err() {
                     let polars_error = df.err().unwrap();

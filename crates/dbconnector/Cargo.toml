@@ -23,9 +23,9 @@ serde_json = "1"
 chrono = "0.4"
 
 arrow = {workspace = true, optional = true}
-arrow2 = {workspace = true, default-features = false, optional = true}
+# arrow2 = {workspace = true, default-features = false, optional = true}
 # polars = {version = "0.37", optional = true, features=["dtype-u8", "dtype-u16"]}
-polars = {workspace = true, optional = true, features=["dtype-u8", "dtype-u16"]}
+# polars = {workspace = true, optional = true, features=["dtype-u8", "dtype-u16"]}
 
 bb8 = {version = "0.7", optional = true}
 bb8-tiberius = {version = "0.5", optional = true}
@@ -72,11 +72,11 @@ iai = "0.1"
 pprof = {version = "0.5", features = ["flamegraph"]}
 
 [features]
-all = ["src_sqlite", "src_postgres", "src_mysql", "src_mssql", "src_oracle", "src_bigquery", "src_csv", "src_dummy", "dst_arrow", "dst_arrow2", "federation", "fed_exec"]
+all = ["src_sqlite", "src_postgres", "src_mysql", "src_mssql", "src_oracle", "src_bigquery", "src_csv", "src_dummy", "dst_arrow", "federation", "fed_exec"]
 branch = []
-default = ["fptr", "dst_arrow", "dst_arrow2", "src_csv"]
+default = ["fptr", "dst_arrow", "src_csv"]
 dst_arrow = ["arrow"]
-dst_arrow2 = ["polars", "arrow2"]
+# st_arrow2 = ["polars", "arrow2"]  
 fptr = []
 src_bigquery = ["gcp-bigquery-client", "tokio"]
 src_csv = ["csv", "regex"]

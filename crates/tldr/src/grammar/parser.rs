@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use arrow::datatypes::TimeUnit;
 
 use nom::{
     branch::alt,
@@ -10,7 +11,8 @@ use nom::{
     sequence::{delimited, pair, preceded, separated_pair, tuple},
     IResult, Parser,
 };
-use polars::datatypes::TimeUnit;
+
+
 
 use super::ast::{Ast, CSVData, DataTypeDescriptor, LoadableFormatData};
 
@@ -46,7 +48,7 @@ fn file_descriptor_parser(input: &str) -> IResult<&str, LoadableFormatData> {
     let csv_tail = ws(tag(")"));
     let csv_contents = pair(
         ws(string_parser),
-        opt(preceded(ws(tag(",")), ws(schema_parser))),
+        preceded(ws(tag(",")), ws(schema_parser)),
     );
 
     let csv_parser = delimited(csv_head, csv_contents, csv_tail);
@@ -92,9 +94,9 @@ fn string_parser(input: &str) -> IResult<&str, &str> {
 }
 
 fn time_unit_parser(input: &str) -> IResult<&str, TimeUnit> {
-    let nanoseconds_parser = map(ws(tag("Nanoseconds")), |_| TimeUnit::Nanoseconds);
-    let microseconds_parser = map(ws(tag("Microseconds")), |_| TimeUnit::Microseconds);
-    let milliseconds_parser = map(ws(tag("Milliseconds")), |_| TimeUnit::Milliseconds);
+    let nanoseconds_parser = map(ws(tag("Nanoseconds")), |_| TimeUnit::Nanosecond);
+    let microseconds_parser = map(ws(tag("Microseconds")), |_| TimeUnit::Microsecond);
+    let milliseconds_parser = map(ws(tag("Milliseconds")), |_| TimeUnit::Millisecond);
 
     alt((nanoseconds_parser, microseconds_parser, milliseconds_parser))(input)
 }
@@ -180,7 +182,7 @@ fn ast_parser_test() {
                 loadable_filenames: vec![LoadableFormatData::CSV(CSVData {
                     filename: "dir/fn.csv".to_string(),
                     separator: None,
-                    field_types: Some(expected_schema)
+                    field_types: expected_schema,
                 })]
             }
         ))
@@ -201,7 +203,7 @@ fn file_descriptor_parser_test() {
             LoadableFormatData::CSV(CSVData {
                 filename: "dir/fn.csv".to_string(),
                 separator: None,
-                field_types: Some(expected_schema)
+                field_types: expected_schema,
             })
         ))
     )
@@ -298,35 +300,35 @@ fn data_type_parser_test() {
         data_type_parser("Datetime \"%Y\" Nanoseconds"),
         Ok((
             "",
-            DataTypeDescriptor::Datetime("%Y", TimeUnit::Nanoseconds, None)
+            DataTypeDescriptor::Datetime("%Y", TimeUnit::Nanosecond, None)
         ))
     );
     assert_eq!(
         data_type_parser("Datetime \"%Y\" Microseconds"),
         Ok((
             "",
-            DataTypeDescriptor::Datetime("%Y", TimeUnit::Microseconds, None)
+            DataTypeDescriptor::Datetime("%Y", TimeUnit::Microsecond, None)
         ))
     );
     assert_eq!(
         data_type_parser("Datetime \"%Y\" Milliseconds"),
         Ok((
             "",
-            DataTypeDescriptor::Datetime("%Y", TimeUnit::Milliseconds, None)
+            DataTypeDescriptor::Datetime("%Y", TimeUnit::Millisecond, None)
         ))
     );
 
     assert_eq!(
         data_type_parser("Duration Nanoseconds"),
-        Ok(("", DataTypeDescriptor::Duration(TimeUnit::Nanoseconds)))
+        Ok(("", DataTypeDescriptor::Duration(TimeUnit::Nanosecond)))
     );
     assert_eq!(
         data_type_parser("Duration Microseconds"),
-        Ok(("", DataTypeDescriptor::Duration(TimeUnit::Microseconds)))
+        Ok(("", DataTypeDescriptor::Duration(TimeUnit::Microsecond)))
     );
     assert_eq!(
         data_type_parser("Duration Milliseconds"),
-        Ok(("", DataTypeDescriptor::Duration(TimeUnit::Milliseconds)))
+        Ok(("", DataTypeDescriptor::Duration(TimeUnit::Millisecond)))
     );
     assert_eq!(
         data_type_parser("Time \"%Y\""),

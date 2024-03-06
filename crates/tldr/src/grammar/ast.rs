@@ -1,6 +1,5 @@
+use arrow::datatypes::TimeUnit;
 use std::collections::HashMap;
-
-use polars::datatypes::TimeUnit;
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum DataTypeDescriptor<'a> {
@@ -38,7 +37,7 @@ pub enum DataTypeDescriptor<'a> {
 pub struct CSVData<'a> {
     pub filename: String,
     pub separator: Option<String>,
-    pub field_types: Option<HashMap<String, DataTypeDescriptor<'a>>>,
+    pub field_types: HashMap<String, DataTypeDescriptor<'a>>,
 }
 
 #[derive(PartialEq, Debug)]
@@ -56,7 +55,7 @@ impl<'a> CSVData<'a> {
         CSVData {
             filename,
             separator,
-            field_types: None,
+            field_types: HashMap::new(),
         }
     }
 }

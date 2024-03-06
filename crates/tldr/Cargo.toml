@@ -22,10 +22,11 @@ cxx-qt-build = { version = "0.6", features = [ "link_qt_object_files" ] }
 cxx-qt = {workspace = true}
 cxx = {workspace = true } 
 cxx-qt-lib = {workspace = true} 
-polars = { workspace = true } 
 nom = { workspace = true } 
 chrono = {workspace = true} 
 datafusion = {workspace = true}
+arrow = {workspace = true}
+arrow-csv = {workspace = true}
 
 
 
