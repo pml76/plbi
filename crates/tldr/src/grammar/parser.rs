@@ -1,5 +1,5 @@
+use arrow::{compute::is_null, datatypes::TimeUnit};
 use std::collections::HashMap;
-use arrow::datatypes::TimeUnit;
 
 use nom::{
     branch::alt,
@@ -11,8 +11,6 @@ use nom::{
     sequence::{delimited, pair, preceded, separated_pair, tuple},
     IResult, Parser,
 };
-
-
 
 use super::ast::{Ast, CSVData, DataTypeDescriptor, LoadableFormatData};
 
@@ -46,10 +44,7 @@ fn file_descriptor_parser(input: &str) -> IResult<&str, LoadableFormatData> {
         ws(tag("=")),
     ));
     let csv_tail = ws(tag(")"));
-    let csv_contents = pair(
-        ws(string_parser),
-        preceded(ws(tag(",")), ws(schema_parser)),
-    );
+    let csv_contents = pair(ws(string_parser), preceded(ws(tag(",")), ws(schema_parser)));
 
     let csv_parser = delimited(csv_head, csv_contents, csv_tail);
 
@@ -103,41 +98,45 @@ fn time_unit_parser(input: &str) -> IResult<&str, TimeUnit> {
 
 /// A parser for data types
 fn data_type_parser(input: &str) -> IResult<&str, DataTypeDescriptor> {
-    let is_nullable_parser = 
+    let is_nullable_parser = map(
+        tuple((ws(tag("nullable")), ws(tag(":")), ws(bool_parser))),
+        |(_, _, b)| b,
+    );
 
-    let boolean_type_parser = map(ws(tag("Boolean")), |_| DataTypeDescriptor::Boolean);
-    let string_type_parser = map(ws(tag("String")), |_| DataTypeDescriptor::String);
-    let uint8_type_parser = map(ws(tag("UInt8")), |_| DataTypeDescriptor::UInt8);
-    let uint16_type_parser = map(ws(tag("UInt16")), |_| DataTypeDescriptor::UInt16);
-    let uint32_type_parser = map(ws(tag("UInt32")), |_| DataTypeDescriptor::UInt32);
-    let uint64_type_parser = map(ws(tag("UInt64")), |_| DataTypeDescriptor::UInt64);
-    let int8_type_parser = map(ws(tag("Int8")), |_| DataTypeDescriptor::Int8);
-    let int16_type_parser = map(ws(tag("Int16")), |_| DataTypeDescriptor::Int16);
-    let int32_type_parser = map(ws(tag("Int32")), |_| DataTypeDescriptor::Int32);
-    let int64_type_parser = map(ws(tag("Int64")), |_| DataTypeDescriptor::Int64);
+    let boolean_type_parser = map(
+        tuple((ws(tag("boolean")), ws(is_nullable_parser))),
+        |(_, b)| DataTypeDescriptor::Boolean(b),
+    );
+    let string_type_parser = map(ws(tag("string")), |_| DataTypeDescriptor::String);
+    let uint8_type_parser = map(ws(tag("uint8")), |_| DataTypeDescriptor::UInt8);
+    let uint16_type_parser = map(ws(tag("uint16")), |_| DataTypeDescriptor::UInt16);
+    let uint32_type_parser = map(ws(tag("uint32")), |_| DataTypeDescriptor::UInt32);
+    let uint64_type_parser = map(ws(tag("uint64")), |_| DataTypeDescriptor::UInt64);
+    let int8_type_parser = map(ws(tag("int8")), |_| DataTypeDescriptor::Int8);
+    let int16_type_parser = map(ws(tag("int16")), |_| DataTypeDescriptor::Int16);
+    let int32_type_parser = map(ws(tag("int32")), |_| DataTypeDescriptor::Int32);
+    let int64_type_parser = map(ws(tag("int64")), |_| DataTypeDescriptor::Int64);
 
-    let float32_type_parser = map(ws(tag("Float32")), |_| DataTypeDescriptor::Float32);
-    let float64_type_parser = map(ws(tag("Float64")), |_| DataTypeDescriptor::Float64);
-    let binary_type_parser = map(ws(tag("Binary")), |_| DataTypeDescriptor::Binary);
-    let date_type_parser = map(pair(ws(tag("Date")), ws(string_parser)), |(_, f)| {
+    let float32_type_parser = map(ws(tag("float32")), |_| DataTypeDescriptor::Float32);
+    let float64_type_parser = map(ws(tag("float64")), |_| DataTypeDescriptor::Float64);
+    let binary_type_parser = map(ws(tag("binary")), |_| DataTypeDescriptor::Binary);
+    let date_type_parser = map(pair(ws(tag("date")), ws(string_parser)), |(_, f)| {
         DataTypeDescriptor::Date(f)
     });
-    let time_type_parser = map(pair(ws(tag("Time")), ws(string_parser)), |(_, f)| {
+    let time_type_parser = map(pair(ws(tag("time")), ws(string_parser)), |(_, f)| {
         DataTypeDescriptor::Time(f)
     });
-    let null_type_parser = map(ws(tag("Null")), |_| DataTypeDescriptor::Null);
-    let unknown_type_parser = map(ws(tag("Unknown")), |_| DataTypeDescriptor::Unknown);
-    let categorical_type_parser = map(ws(tag("Categorical")), |_| DataTypeDescriptor::Categorical);
+    let null_type_parser = map(ws(tag("null")), |_| DataTypeDescriptor::Null);
     let datetime_type_parser = map(
         tuple((
-            ws(tag("Datetime")),
+            ws(tag("datetime")),
             ws(string_parser),
             ws(time_unit_parser),
             ws(opt(string_parser)),
         )),
         |(_, f, d, tz)| DataTypeDescriptor::Datetime(f, d, tz.map(|x| x.to_string())),
     );
-    let duration_type_parser = map(pair(ws(tag("Duration")), ws(time_unit_parser)), |(_, d)| {
+    let duration_type_parser = map(pair(ws(tag("duration")), ws(time_unit_parser)), |(_, d)| {
         DataTypeDescriptor::Duration(d)
     });
 
@@ -164,14 +163,9 @@ fn data_type_parser(input: &str) -> IResult<&str, DataTypeDescriptor> {
     ))(input)
 }
 
-
-fn parse_bool(i: &str) -> IResult<&str, bool> {
-    alt((
-      map(tag("true"), |_| true),
-      map(tag("false"), |_| false),
-    ))
-    .parse(i)
-  }
+fn bool_parser(i: &str) -> IResult<&str, bool> {
+    alt((map(tag("true"), |_| true), map(tag("false"), |_| false))).parse(i)
+}
 
 #[test]
 fn ast_parser_test() {
