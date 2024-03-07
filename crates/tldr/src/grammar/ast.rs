@@ -31,7 +31,23 @@ pub enum DataTypeDescriptor<'a> {
 impl<'a> DataTypeDescriptor<'a> {
     pub fn is_nullable(&self) -> bool {
         match self {
+            &DataTypeDescriptor::UInt8(b) => b,
+            &DataTypeDescriptor::UInt16(b) => b,
+            &DataTypeDescriptor::UInt32(b) => b,
+            &DataTypeDescriptor::UInt64(b) => b,
+            &DataTypeDescriptor::Int8(b) => b,
+            &DataTypeDescriptor::Int16(b) => b,
+            &DataTypeDescriptor::Int32(b) => b,
+            &DataTypeDescriptor::Int64(b) => b,
+            &DataTypeDescriptor::Float32(b) => b,
+            &DataTypeDescriptor::Float64(b) => b,
+            &DataTypeDescriptor::Boolean(b) => b,
+            &DataTypeDescriptor::Binary(b) => b,
+            &DataTypeDescriptor::String(b) => b,
+            &DataTypeDescriptor::Duration(b, _) => b,
+            &DataTypeDescriptor::Time(b, _) => b,
             &DataTypeDescriptor::Date(b, _) => b,
+            &DataTypeDescriptor::Datetime(b, _, _, _) => b,
             &DataTypeDescriptor::Null => true,
         }
     }

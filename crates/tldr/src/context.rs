@@ -4,7 +4,7 @@ use crate::{
 };
 
 use arrow_csv::infer_schema_from_files;
-use datafusion::dataframe::DataFrame;
+use datafusion::{dataframe::DataFrame, execution::context::SessionContext};
 
 use arrow::{datatypes::{DataType, Field, Schema}, csv::ReaderBuilder};
 use std::{collections::HashMap, ffi::OsStr, fs::File, path::Path, sync::Arc};
@@ -15,22 +15,22 @@ pub struct TableColumn<'a> {
 }
 
 pub struct Context {
-    pub base_tables: HashMap<String, DataFrame>,
+    pub ctx : SessionContext
 }
 
 impl<'a> Context {
     pub fn convert_ast(ast: &'a Ast) -> Result<Context, TldrError> {
-        let base_tables = load_base_tables(&ast.loadable_filenames)?;
+        let ctx = load_base_tables(&ast.loadable_filenames)?;
 
-        Ok(Context { base_tables })
+        Ok(Context { ctx })
     }
 }
 
 // load csv, parquet, and json tables...
 fn load_base_tables(
     loadable_filenames: &Vec<LoadableFormatData>,
-) -> Result<HashMap<String, DataFrame>, TldrError> {
-    let mut ret = HashMap::new();
+) -> Result<SessionContext, TldrError> {
+    let mut ret = SessionContext::new();
 
     for filename in loadable_filenames {
         if let LoadableFormatData::CSV(data) = filename {
@@ -74,7 +74,7 @@ fn load_base_tables(
                             &DataTypeDescriptor::Boolean(_) => DataType::Boolean,
                             &DataTypeDescriptor::Null=> DataType::Null,
                         };
-                        Field::new(k, dtype, true)
+                        Field::new(k, dtype, v.is_nullable())
                     })
                     .collect::<Vec<_>>());
             
@@ -88,9 +88,14 @@ fn load_base_tables(
                 let csv_reader = ReaderBuilder::new(Arc::new(schema))
                     .build(file).unwrap();
 
+                let mut batches = Vec::new();
                 for batch in csv_reader {
-
+                    if batch.is_err() {
+                        return Err(TldrError::TldrCouldNotReadFile(data.filename));
+                    }
+                    batches.push(batch.unwrap());
                 }
+                
 
                 if df.is_err() {
                     let polars_error = df.err().unwrap();
@@ -159,7 +164,7 @@ fn load_base_tables(
                     let s = format!("{}", path.display());
                     return Err(TldrError::TldrFileNameWithoutStem(s));
                 }
-                ret.insert(path.file_stem().unwrap().to_str().unwrap().to_string(), df);
+                batches.insert(path.file_stem().unwrap().to_str().unwrap().to_string(), df);
                 continue;
             }
         }
