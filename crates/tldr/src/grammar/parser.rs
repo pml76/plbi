@@ -103,6 +103,8 @@ fn time_unit_parser(input: &str) -> IResult<&str, TimeUnit> {
 
 /// A parser for data types
 fn data_type_parser(input: &str) -> IResult<&str, DataTypeDescriptor> {
+    let is_nullable_parser = 
+
     let boolean_type_parser = map(ws(tag("Boolean")), |_| DataTypeDescriptor::Boolean);
     let string_type_parser = map(ws(tag("String")), |_| DataTypeDescriptor::String);
     let uint8_type_parser = map(ws(tag("UInt8")), |_| DataTypeDescriptor::UInt8);
@@ -117,9 +119,6 @@ fn data_type_parser(input: &str) -> IResult<&str, DataTypeDescriptor> {
     let float32_type_parser = map(ws(tag("Float32")), |_| DataTypeDescriptor::Float32);
     let float64_type_parser = map(ws(tag("Float64")), |_| DataTypeDescriptor::Float64);
     let binary_type_parser = map(ws(tag("Binary")), |_| DataTypeDescriptor::Binary);
-    let binary_offset_type_parser = map(ws(tag("BinaryOffset")), |_| {
-        DataTypeDescriptor::BinaryOffset
-    });
     let date_type_parser = map(pair(ws(tag("Date")), ws(string_parser)), |(_, f)| {
         DataTypeDescriptor::Date(f)
     });
@@ -156,16 +155,23 @@ fn data_type_parser(input: &str) -> IResult<&str, DataTypeDescriptor> {
         int64_type_parser,
         float32_type_parser,
         float64_type_parser,
-        binary_offset_type_parser,
         binary_type_parser,
         time_type_parser,
         null_type_parser,
-        unknown_type_parser,
         datetime_type_parser,
         duration_type_parser,
         date_type_parser,
     ))(input)
 }
+
+
+fn parse_bool(i: &str) -> IResult<&str, bool> {
+    alt((
+      map(tag("true"), |_| true),
+      map(tag("false"), |_| false),
+    ))
+    .parse(i)
+  }
 
 #[test]
 fn ast_parser_test() {

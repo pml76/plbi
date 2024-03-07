@@ -3,11 +3,11 @@ use crate::{
     grammar::ast::{Ast, DataTypeDescriptor, LoadableFormatData},
 };
 
+use arrow_csv::infer_schema_from_files;
 use datafusion::dataframe::DataFrame;
 
-use arrow::datatypes::{DataType, Field, Schema};
-use arrow_csv::reader;
-use std::{collections::HashMap, ffi::OsStr, path::Path};
+use arrow::{datatypes::{DataType, Field, Schema}, csv::ReaderBuilder};
+use std::{collections::HashMap, ffi::OsStr, fs::File, path::Path, sync::Arc};
 
 pub struct TableColumn<'a> {
     pub table: &'a str,
@@ -44,35 +44,53 @@ fn load_base_tables(
             {
                 println!("reading file: {}", path.display());
 
-                // get the types right ...
-                let schema = Schema::new(data.field_types
-                        .iter()
-                        .map(|(k, v)| {
-                            let dtype = match v {
-                                &DataTypeDescriptor::Time(_)
-                                | &DataTypeDescriptor::Date(_)
-                                | &DataTypeDescriptor::Datetime(_, _, _) => DataType::Utf8,
-                                &DataTypeDescriptor::UInt8 => DataType::UInt8,
-                                &DataTypeDescriptor::UInt16 => DataType::UInt16,
-                                &DataTypeDescriptor::UInt32 => DataType::UInt32,
-                                &DataTypeDescriptor::UInt64 => DataType::UInt64,
-                                &DataTypeDescriptor::Int8 => DataType::Int8,
-                                &DataTypeDescriptor::Int16 => DataType::Int16,
-                                &DataTypeDescriptor::Int32 => DataType::Int32,
-                                &DataTypeDescriptor::Int64 => DataType::Int64,
-                                &DataTypeDescriptor::Float32 => DataType::Float32,
-                                &DataTypeDescriptor::Float64 => DataType::Float64,
-                                &DataTypeDescriptor::String => DataType::Utf8,
-                                &DataTypeDescriptor::Binary => DataType::Binary,
-                                &DataTypeDescriptor::Duration(tu) => DataType::Duration(tu),
-                                &DataTypeDescriptor::Boolean => DataType::Boolean,
-                                &DataTypeDescriptor::Null => DataType::Null,
-                            };
-                            Field::new(k, dtype, true)
-                        })
-                        .collect::<Vec<_>>());
+                let schema = infer_schema_from_files(&[data.filename], data.delimiter, data.max_read_records, data.has_header)
+                if schema.is_err() {
+                    return Err(TldrError::TldrCouldNotReadSchema(data.filename))
+                }
+                let schema = schema.unwrap();
 
-                let df = reader()
+                // get the types right ...
+                let mod_schema = Schema::new(data.field_types
+                    .iter()
+                    .map(|(k, v)| {
+                        let dtype = match v {
+                            &DataTypeDescriptor::Time(_)
+                            | &DataTypeDescriptor::Date(_)
+                            | &DataTypeDescriptor::Datetime(_, _, _) => DataType::Utf8,
+                            &DataTypeDescriptor::UInt8 => DataType::UInt8,
+                            &DataTypeDescriptor::UInt16 => DataType::UInt16,
+                            &DataTypeDescriptor::UInt32 => DataType::UInt32,
+                            &DataTypeDescriptor::UInt64 => DataType::UInt64,
+                            &DataTypeDescriptor::Int8 => DataType::Int8,
+                            &DataTypeDescriptor::Int16 => DataType::Int16,
+                            &DataTypeDescriptor::Int32 => DataType::Int32,
+                            &DataTypeDescriptor::Int64 => DataType::Int64,
+                            &DataTypeDescriptor::Float32 => DataType::Float32,
+                            &DataTypeDescriptor::Float64 => DataType::Float64,
+                            &DataTypeDescriptor::String => DataType::Utf8,
+                            &DataTypeDescriptor::Binary => DataType::Binary,
+                            &DataTypeDescriptor::Duration(tu) => DataType::Duration(tu),
+                            &DataTypeDescriptor::Boolean => DataType::Boolean,
+                            &DataTypeDescriptor::Null => DataType::Null,
+                        };
+                        Field::new(k, dtype, true)
+                    })
+                    .collect::<Vec<_>>());
+            
+                let schema = Schema::try_merge([schema, mod_schema]);
+                if schema.is_err() {
+                    return Err(TldrError::TldrCouldNotMergeSchemas(data.filename));
+                }
+                
+                let schema = schema.unwrap();
+                let file = File::open(path).unwrap();
+                let csv_reader = ReaderBuilder::new(Arc::new(schema))
+                    .build(file).unwrap();
+
+                for batch in csv_reader {
+
+                }
 
                 if df.is_err() {
                     let polars_error = df.err().unwrap();

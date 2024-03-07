@@ -3,34 +3,29 @@ use std::collections::HashMap;
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum DataTypeDescriptor<'a> {
-    UInt8,
-    UInt16,
-    UInt32,
-    UInt64,
-    Int8,
-    Int16,
-    Int32,
-    Int64,
-    Float32,
-    Float64,
+    UInt8(bool),
+    UInt16(bool),
+    UInt32(bool),
+    UInt64(bool),
+    Int8(bool),
+    Int16(bool),
+    Int32(bool),
+    Int64(bool),
+    Float32(bool),
+    Float64(bool),
     Null,
-    Unknown,
-    Boolean,
-    Binary,
-    BinaryOffset,
-    String,
-    Duration(TimeUnit),
+    Boolean(bool),
+    Binary(bool),
+    String(bool),
+    Duration(bool, TimeUnit),
 
-    Time(&'a str),
+    Time(bool, &'a str),
     /// parameter of Time() is format string according to
     /// https://docs.rs/chrono/latest/chrono/format/strftime/index.html
-    Date(&'a str),
+    Date(bool, &'a str),
     /// parameter of Date() is format string according to
     /// https://docs.rs/chrono/latest/chrono/format/strftime/index.html
-    Datetime(&'a str, TimeUnit, Option<String>),
-    /// first parameter of Datetime() is format string according to
-    /// https://docs.rs/chrono/latest/chrono/format/strftime/index.html
-    Categorical,
+    Datetime(bool, &'a str, TimeUnit, Option<String>),
 }
 
 #[derive(PartialEq, Debug)]

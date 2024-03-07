@@ -5,4 +5,6 @@ pub enum TldrError {
     TldrFileNotfound(String),
     TldrCouldNotReadFile(String),
     TldrFileNameWithoutStem(String),
+    TldrCouldNotReadSchema(String),
+    TldrCouldNotMergeSchemas(String),
 }
