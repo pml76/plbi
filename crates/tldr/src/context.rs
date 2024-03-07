@@ -4,7 +4,7 @@ use crate::{
 };
 
 use arrow_csv::infer_schema_from_files;
-use datafusion::{dataframe::DataFrame, execution::context::SessionContext};
+use datafusion::{dataframe::DataFrame, datasource::MemTable, execution::context::SessionContext, sql::TableReference};
 
 use arrow::{datatypes::{DataType, Field, Schema}, csv::ReaderBuilder};
 use std::{collections::HashMap, ffi::OsStr, fs::File, path::Path, sync::Arc};
@@ -95,71 +95,67 @@ fn load_base_tables(
                     }
                     batches.push(batch.unwrap());
                 }
+                let m = MemTable::try_new(
+                    Arc::new(schema), 
+                    vec!(batches)
+                ).map_err(|_| TldrError::TldrCouldNotCreateMemTable(data.filename))?;
                 
+                ret.register_table(
+                    TableReference::bare(path.file_stem().unwrap().to_str().unwrap()), 
+                    Arc::new(m)
+                );
 
-                if df.is_err() {
-                    let polars_error = df.err().unwrap();
-                    println!("{}", polars_error);
+                
+                for (field_name, field_type) in data.field_types.as_ref().unwrap() {
+                    if schema.get_field(field_name).is_none() {
+                        continue;
+                    }
+                    if let DataTypeDescriptor::Date(f) = field_type {
+                        let q1 = col(field_name).str().to_date(StrptimeOptions {
+                            format: Some(f.to_string()),
+                            ..Default::default()
+                        });
+                        let q2 = col("*").exclude([field_name]);
 
-                    let s = format!("{}", path.display());
-                    return Err(TldrError::TldrCouldNotReadFile(s));
-                }
-
-                let mut df = df.unwrap();
-                let schema = df.schema();
-
-                if data.field_types.is_some() {
-                    for (field_name, field_type) in data.field_types.as_ref().unwrap() {
-                        if schema.get_field(field_name).is_none() {
+                        let tmp = df.clone().lazy().select([q1, q2]).collect();
+                        if tmp.is_err() {
                             continue;
                         }
-                        if let DataTypeDescriptor::Date(f) = field_type {
-                            let q1 = col(field_name).str().to_date(StrptimeOptions {
+                        df = tmp.unwrap();
+                    }
+                    if let DataTypeDescriptor::Datetime(f, tu, st) = field_type {
+                        let q1 = col(field_name).str().to_datetime(
+                            Some(*tu),
+                            st.clone(),
+                            StrptimeOptions {
                                 format: Some(f.to_string()),
                                 ..Default::default()
-                            });
-                            let q2 = col("*").exclude([field_name]);
+                            },
+                            lit("f"),
+                        );
+                        let q2 = col("*").exclude([field_name]);
 
-                            let tmp = df.clone().lazy().select([q1, q2]).collect();
-                            if tmp.is_err() {
-                                continue;
-                            }
-                            df = tmp.unwrap();
+                        let tmp = df.clone().lazy().select([q1, q2]).collect();
+                        if tmp.is_err() {
+                            continue;
                         }
-                        if let DataTypeDescriptor::Datetime(f, tu, st) = field_type {
-                            let q1 = col(field_name).str().to_datetime(
-                                Some(*tu),
-                                st.clone(),
-                                StrptimeOptions {
-                                    format: Some(f.to_string()),
-                                    ..Default::default()
-                                },
-                                lit("f"),
-                            );
-                            let q2 = col("*").exclude([field_name]);
+                        df = tmp.unwrap();
+                    }
+                    if let DataTypeDescriptor::Time(format_string) = field_type {
+                        let q1 = col(field_name).str().to_date(StrptimeOptions {
+                            format: Some(format_string.to_string()),
+                            ..Default::default()
+                        });
+                        let q2 = col("*").exclude([field_name]);
 
-                            let tmp = df.clone().lazy().select([q1, q2]).collect();
-                            if tmp.is_err() {
-                                continue;
-                            }
-                            df = tmp.unwrap();
+                        let tmp = df.clone().lazy().select([q1, q2]).collect();
+                        if tmp.is_err() {
+                            continue;
                         }
-                        if let DataTypeDescriptor::Time(format_string) = field_type {
-                            let q1 = col(field_name).str().to_date(StrptimeOptions {
-                                format: Some(format_string.to_string()),
-                                ..Default::default()
-                            });
-                            let q2 = col("*").exclude([field_name]);
-
-                            let tmp = df.clone().lazy().select([q1, q2]).collect();
-                            if tmp.is_err() {
-                                continue;
-                            }
-                            df = tmp.unwrap();
-                        }
+                        df = tmp.unwrap();
                     }
                 }
-
+            
                 if path.file_stem().is_none() {
                     let s = format!("{}", path.display());
                     return Err(TldrError::TldrFileNameWithoutStem(s));

@@ -7,4 +7,5 @@ pub enum TldrError {
     TldrFileNameWithoutStem(String),
     TldrCouldNotReadSchema(String),
     TldrCouldNotMergeSchemas(String),
+    TldrCouldNotCreateMemTable(String),
 }
