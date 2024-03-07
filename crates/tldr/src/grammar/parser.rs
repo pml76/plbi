@@ -1,4 +1,4 @@
-use arrow::{compute::is_null, datatypes::TimeUnit};
+use arrow::datatypes::TimeUnit;
 use std::collections::HashMap;
 
 use nom::{
@@ -99,7 +99,7 @@ fn time_unit_parser(input: &str) -> IResult<&str, TimeUnit> {
 /// A parser for data types
 fn data_type_parser(input: &str) -> IResult<&str, DataTypeDescriptor> {
     let is_nullable_parser = map(
-        tuple((ws(tag("nullable")), ws(tag(":")), ws(bool_parser))),
+        tuple((ws(tag("is_nullable")), ws(tag(":")), ws(bool_parser))),
         |(_, _, b)| b,
     );
 
@@ -107,25 +107,63 @@ fn data_type_parser(input: &str) -> IResult<&str, DataTypeDescriptor> {
         tuple((ws(tag("boolean")), ws(is_nullable_parser))),
         |(_, b)| DataTypeDescriptor::Boolean(b),
     );
-    let string_type_parser = map(ws(tag("string")), |_| DataTypeDescriptor::String);
-    let uint8_type_parser = map(ws(tag("uint8")), |_| DataTypeDescriptor::UInt8);
-    let uint16_type_parser = map(ws(tag("uint16")), |_| DataTypeDescriptor::UInt16);
-    let uint32_type_parser = map(ws(tag("uint32")), |_| DataTypeDescriptor::UInt32);
-    let uint64_type_parser = map(ws(tag("uint64")), |_| DataTypeDescriptor::UInt64);
-    let int8_type_parser = map(ws(tag("int8")), |_| DataTypeDescriptor::Int8);
-    let int16_type_parser = map(ws(tag("int16")), |_| DataTypeDescriptor::Int16);
-    let int32_type_parser = map(ws(tag("int32")), |_| DataTypeDescriptor::Int32);
-    let int64_type_parser = map(ws(tag("int64")), |_| DataTypeDescriptor::Int64);
+    let string_type_parser = map(
+        tuple((ws(tag("string")), ws(is_nullable_parser))),
+        |(_, b)| DataTypeDescriptor::String(b),
+    );
+    let uint8_type_parser = map(
+        tuple((ws(tag("uint8")), ws(is_nullable_parser))),
+        |(_, b)| DataTypeDescriptor::UInt8(b),
+    );
+    let uint16_type_parser = map(
+        tuple((ws(tag("uint16")), ws(is_nullable_parser))),
+        |(_, b)| DataTypeDescriptor::UInt16(b),
+    );
+    let uint32_type_parser = map(
+        tuple((ws(tag("uint32")), ws(is_nullable_parser))),
+        |(_, b)| DataTypeDescriptor::UInt32(b),
+    );
+    let uint64_type_parser = map(
+        tuple((ws(tag("uint64")), ws(is_nullable_parser))),
+        |(_, b)| DataTypeDescriptor::UInt64(b),
+    );
+    let int8_type_parser = map(
+        tuple((ws(tag("int8")), ws(is_nullable_parser))),
+        |(_, b)| DataTypeDescriptor::Int8(b),
+    );
+    let int16_type_parser = map(
+        tuple((ws(tag("int16")), ws(is_nullable_parser))),
+        |(_, b)| DataTypeDescriptor::Int16(b),
+    );
+    let int32_type_parser = map(
+        tuple((ws(tag("int32")), ws(is_nullable_parser))),
+        |(_, b)| DataTypeDescriptor::Int32(b),
+    );
+    let int64_type_parser = map(
+        tuple((ws(tag("int64")), ws(is_nullable_parser))),
+        |(_, b)| DataTypeDescriptor::Int64(b),
+    );
 
-    let float32_type_parser = map(ws(tag("float32")), |_| DataTypeDescriptor::Float32);
-    let float64_type_parser = map(ws(tag("float64")), |_| DataTypeDescriptor::Float64);
-    let binary_type_parser = map(ws(tag("binary")), |_| DataTypeDescriptor::Binary);
-    let date_type_parser = map(pair(ws(tag("date")), ws(string_parser)), |(_, f)| {
-        DataTypeDescriptor::Date(f)
-    });
-    let time_type_parser = map(pair(ws(tag("time")), ws(string_parser)), |(_, f)| {
-        DataTypeDescriptor::Time(f)
-    });
+    let float32_type_parser = map(
+        tuple((ws(tag("float32")), ws(is_nullable_parser))),
+        |(_, b)| DataTypeDescriptor::Float32(b),
+    );
+    let float64_type_parser = map(
+        tuple((ws(tag("float64")), ws(is_nullable_parser))),
+        |(_, b)| DataTypeDescriptor::Float64(b),
+    );
+    let binary_type_parser = map(
+        tuple((ws(tag("binary")), ws(is_nullable_parser))),
+        |(_, b)| DataTypeDescriptor::Binary(b),
+    );
+    let date_type_parser = map(
+        tuple((ws(tag("date")), ws(string_parser), ws(is_nullable_parser))),
+        |(_, f, b)| DataTypeDescriptor::Date(b, f),
+    );
+    let time_type_parser = map(
+        tuple((ws(tag("time")), ws(string_parser), ws(is_nullable_parser))),
+        |(_, f, b)| DataTypeDescriptor::Time(b, f),
+    );
     let null_type_parser = map(ws(tag("null")), |_| DataTypeDescriptor::Null);
     let datetime_type_parser = map(
         tuple((
@@ -133,15 +171,20 @@ fn data_type_parser(input: &str) -> IResult<&str, DataTypeDescriptor> {
             ws(string_parser),
             ws(time_unit_parser),
             ws(opt(string_parser)),
+            ws(is_nullable_parser),
         )),
-        |(_, f, d, tz)| DataTypeDescriptor::Datetime(f, d, tz.map(|x| x.to_string())),
+        |(_, f, d, tz, b)| DataTypeDescriptor::Datetime(b, f, d, tz.map(|x| x.to_string())),
     );
-    let duration_type_parser = map(pair(ws(tag("duration")), ws(time_unit_parser)), |(_, d)| {
-        DataTypeDescriptor::Duration(d)
-    });
+    let duration_type_parser = map(
+        tuple((
+            ws(tag("duration")),
+            ws(time_unit_parser),
+            ws(is_nullable_parser),
+        )),
+        |(_, d, b)| DataTypeDescriptor::Duration(b, d),
+    );
 
     alt((
-        categorical_type_parser,
         boolean_type_parser,
         uint8_type_parser,
         uint16_type_parser,
@@ -170,11 +213,11 @@ fn bool_parser(i: &str) -> IResult<&str, bool> {
 #[test]
 fn ast_parser_test() {
     let mut expected_schema = HashMap::new();
-    expected_schema.insert("asdf".to_string(), DataTypeDescriptor::Date("%Y"));
+    expected_schema.insert("asdf".to_string(), DataTypeDescriptor::Date(false, "%Y"));
 
     assert_eq!(
         ast_parser(
-            "load_files CSV(file_name = \"dir/fn.csv\", field_types{ (\"asdf\": Date \"%Y\")} )"
+            "load_files CSV(file_name = \"dir/fn.csv\", field_types{ (\"asdf\": Date \"%Y\" is_nullable: false)} )"
         ),
         Ok((
             "",
@@ -192,7 +235,7 @@ fn ast_parser_test() {
 #[test]
 fn file_descriptor_parser_test() {
     let mut expected_schema = HashMap::new();
-    expected_schema.insert("asdf".to_string(), DataTypeDescriptor::Date("%Y"));
+    expected_schema.insert("asdf".to_string(), DataTypeDescriptor::Date(false, "%Y"));
 
     assert_eq!(
         file_descriptor_parser(
@@ -213,14 +256,14 @@ fn file_descriptor_parser_test() {
 fn schema_entry_parser_test() {
     assert_eq!(
         schema_entry_parser("( \"asdf\": Boolean )"),
-        Ok(("", ("asdf", DataTypeDescriptor::Boolean)))
+        Ok(("", ("asdf", DataTypeDescriptor::Boolean(false))))
     );
 }
 
 #[test]
 fn schema_parser_test() {
     let mut expected_result = HashMap::new();
-    expected_result.insert("asdf".to_string(), DataTypeDescriptor::String);
+    expected_result.insert("asdf".to_string(), DataTypeDescriptor::String(false));
 
     assert_eq!(
         schema_parser("field_types{ (\"asdf\": String) }"),
@@ -240,103 +283,107 @@ fn string_parser_test() {
 fn data_type_parser_test() {
     assert_eq!(
         data_type_parser("Boolean"),
-        Ok(("", DataTypeDescriptor::Boolean))
+        Ok(("", DataTypeDescriptor::Boolean(false)))
     );
     assert_eq!(
         data_type_parser("UInt8"),
-        Ok(("", DataTypeDescriptor::UInt8))
+        Ok(("", DataTypeDescriptor::UInt8(false)))
     );
     assert_eq!(
         data_type_parser("UInt16"),
-        Ok(("", DataTypeDescriptor::UInt16))
+        Ok(("", DataTypeDescriptor::UInt16(false)))
     );
     assert_eq!(
         data_type_parser("UInt32"),
-        Ok(("", DataTypeDescriptor::UInt32))
+        Ok(("", DataTypeDescriptor::UInt32(false)))
     );
     assert_eq!(
         data_type_parser("UInt64"),
-        Ok(("", DataTypeDescriptor::UInt64))
+        Ok(("", DataTypeDescriptor::UInt64(false)))
     );
-    assert_eq!(data_type_parser("Int8"), Ok(("", DataTypeDescriptor::Int8)));
+    assert_eq!(
+        data_type_parser("Int8"),
+        Ok(("", DataTypeDescriptor::Int8(false)))
+    );
     assert_eq!(
         data_type_parser("Int16"),
-        Ok(("", DataTypeDescriptor::Int16))
+        Ok(("", DataTypeDescriptor::Int16(false)))
     );
     assert_eq!(
         data_type_parser("Int32"),
-        Ok(("", DataTypeDescriptor::Int32))
+        Ok(("", DataTypeDescriptor::Int32(false)))
     );
     assert_eq!(
         data_type_parser("Int64"),
-        Ok(("", DataTypeDescriptor::Int64))
+        Ok(("", DataTypeDescriptor::Int64(false)))
     );
     assert_eq!(
         data_type_parser("Float32"),
-        Ok(("", DataTypeDescriptor::Float32))
+        Ok(("", DataTypeDescriptor::Float32(false)))
     );
     assert_eq!(
         data_type_parser("Float64"),
-        Ok(("", DataTypeDescriptor::Float64))
+        Ok(("", DataTypeDescriptor::Float64(false)))
     );
     assert_eq!(
         data_type_parser("String"),
-        Ok(("", DataTypeDescriptor::String))
+        Ok(("", DataTypeDescriptor::String(false)))
     );
     assert_eq!(
         data_type_parser("Binary"),
-        Ok(("", DataTypeDescriptor::Binary))
-    );
-    assert_eq!(
-        data_type_parser("BinaryOffset"),
-        Ok(("", DataTypeDescriptor::BinaryOffset))
+        Ok(("", DataTypeDescriptor::Binary(false)))
     );
     assert_eq!(
         data_type_parser("Date \"%Y\""),
-        Ok(("", DataTypeDescriptor::Date("%Y")))
+        Ok(("", DataTypeDescriptor::Date(false, "%Y")))
     );
 
     assert_eq!(
         data_type_parser("Datetime \"%Y\" Nanoseconds"),
         Ok((
             "",
-            DataTypeDescriptor::Datetime("%Y", TimeUnit::Nanosecond, None)
+            DataTypeDescriptor::Datetime(false, "%Y", TimeUnit::Nanosecond, None)
         ))
     );
     assert_eq!(
         data_type_parser("Datetime \"%Y\" Microseconds"),
         Ok((
             "",
-            DataTypeDescriptor::Datetime("%Y", TimeUnit::Microsecond, None)
+            DataTypeDescriptor::Datetime(false, "%Y", TimeUnit::Microsecond, None)
         ))
     );
     assert_eq!(
         data_type_parser("Datetime \"%Y\" Milliseconds"),
         Ok((
             "",
-            DataTypeDescriptor::Datetime("%Y", TimeUnit::Millisecond, None)
+            DataTypeDescriptor::Datetime(false, "%Y", TimeUnit::Millisecond, None)
         ))
     );
 
     assert_eq!(
         data_type_parser("Duration Nanoseconds"),
-        Ok(("", DataTypeDescriptor::Duration(TimeUnit::Nanosecond)))
+        Ok((
+            "",
+            DataTypeDescriptor::Duration(false, TimeUnit::Nanosecond)
+        ))
     );
     assert_eq!(
         data_type_parser("Duration Microseconds"),
-        Ok(("", DataTypeDescriptor::Duration(TimeUnit::Microsecond)))
+        Ok((
+            "",
+            DataTypeDescriptor::Duration(false, TimeUnit::Microsecond)
+        ))
     );
     assert_eq!(
         data_type_parser("Duration Milliseconds"),
-        Ok(("", DataTypeDescriptor::Duration(TimeUnit::Millisecond)))
+        Ok((
+            "",
+            DataTypeDescriptor::Duration(false, TimeUnit::Millisecond)
+        ))
     );
     assert_eq!(
         data_type_parser("Time \"%Y\""),
-        Ok(("", DataTypeDescriptor::Time("%Y")))
+        Ok(("", DataTypeDescriptor::Time(false, "%Y")))
     );
     assert_eq!(data_type_parser("Null"), Ok(("", DataTypeDescriptor::Null)));
-    assert_eq!(
-        data_type_parser("Unknown"),
-        Ok(("", DataTypeDescriptor::Unknown))
-    );
 }

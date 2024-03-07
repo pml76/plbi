@@ -28,6 +28,15 @@ pub enum DataTypeDescriptor<'a> {
     Datetime(bool, &'a str, TimeUnit, Option<String>),
 }
 
+impl<'a> DataTypeDescriptor<'a> {
+    pub fn is_nullable(&self) -> bool {
+        match self {
+            &DataTypeDescriptor::Date(b, _) => b,
+            &DataTypeDescriptor::Null => true,
+        }
+    }
+}
+
 #[derive(PartialEq, Debug)]
 pub struct CSVData<'a> {
     pub filename: String,

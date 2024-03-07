@@ -55,24 +55,24 @@ fn load_base_tables(
                     .iter()
                     .map(|(k, v)| {
                         let dtype = match v {
-                            &DataTypeDescriptor::Time(_)
-                            | &DataTypeDescriptor::Date(_)
-                            | &DataTypeDescriptor::Datetime(_, _, _) => DataType::Utf8,
-                            &DataTypeDescriptor::UInt8 => DataType::UInt8,
-                            &DataTypeDescriptor::UInt16 => DataType::UInt16,
-                            &DataTypeDescriptor::UInt32 => DataType::UInt32,
-                            &DataTypeDescriptor::UInt64 => DataType::UInt64,
-                            &DataTypeDescriptor::Int8 => DataType::Int8,
-                            &DataTypeDescriptor::Int16 => DataType::Int16,
-                            &DataTypeDescriptor::Int32 => DataType::Int32,
-                            &DataTypeDescriptor::Int64 => DataType::Int64,
-                            &DataTypeDescriptor::Float32 => DataType::Float32,
-                            &DataTypeDescriptor::Float64 => DataType::Float64,
-                            &DataTypeDescriptor::String => DataType::Utf8,
-                            &DataTypeDescriptor::Binary => DataType::Binary,
-                            &DataTypeDescriptor::Duration(tu) => DataType::Duration(tu),
-                            &DataTypeDescriptor::Boolean => DataType::Boolean,
-                            &DataTypeDescriptor::Null => DataType::Null,
+                            &DataTypeDescriptor::Time(_, _)
+                            | &DataTypeDescriptor::Date(_, _)
+                            | &DataTypeDescriptor::Datetime(_, _, _, _) => DataType::Utf8,
+                            &DataTypeDescriptor::UInt8(_) => DataType::UInt8,
+                            &DataTypeDescriptor::UInt16(_) => DataType::UInt16,
+                            &DataTypeDescriptor::UInt32(_) => DataType::UInt32,
+                            &DataTypeDescriptor::UInt64(_) => DataType::UInt64,
+                            &DataTypeDescriptor::Int8(_) => DataType::Int8,
+                            &DataTypeDescriptor::Int16(_) => DataType::Int16,
+                            &DataTypeDescriptor::Int32(_) => DataType::Int32,
+                            &DataTypeDescriptor::Int64(_) => DataType::Int64,
+                            &DataTypeDescriptor::Float32(_) => DataType::Float32,
+                            &DataTypeDescriptor::Float64(_) => DataType::Float64,
+                            &DataTypeDescriptor::String(_) => DataType::Utf8,
+                            &DataTypeDescriptor::Binary(_) => DataType::Binary,
+                            &DataTypeDescriptor::Duration(_, tu) => DataType::Duration(tu),
+                            &DataTypeDescriptor::Boolean(_) => DataType::Boolean,
+                            &DataTypeDescriptor::Null=> DataType::Null,
                         };
                         Field::new(k, dtype, true)
                     })
