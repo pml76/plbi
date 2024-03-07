@@ -11,6 +11,7 @@ nom = "7.1.3"
 chrono = "0.4.33"
 arrow = "50"
 arrow-csv = "50"
+arrow-odbc = "8.0.0"
 
 dbconnector = { version = "0.3.3", path = "crates/dbconnector", features = [
     "src_csv", 
