@@ -1,6 +1,6 @@
 use crate::{
     error::TldrError,
-    grammar::ast::{Ast, DataTypeDescriptor, LoadableFormatData},
+    grammar::ast::{Ast, DataTypeDescriptor, FileDescriptorData},
 };
 
 use arrow_csv::infer_schema_from_files;
@@ -23,7 +23,7 @@ pub struct Context {
 
 impl<'a> Context {
     pub fn convert_ast(ast: &'a Ast) -> Result<Context, TldrError> {
-        let ctx = load_base_tables(&ast.loadable_filenames)?;
+        let ctx = load_base_tables(&ast.file_descriptors)?;
 
         Ok(Context { ctx })
     }
@@ -31,12 +31,12 @@ impl<'a> Context {
 
 // load csv, parquet, and json tables...
 fn load_base_tables(
-    loadable_filenames: &Vec<LoadableFormatData>,
+    loadable_filenames: &Vec<FileDescriptorData>,
 ) -> Result<SessionContext, TldrError> {
     let ret = SessionContext::new();
 
     for filename in loadable_filenames {
-        if let LoadableFormatData::CSV(data) = filename {
+        if let FileDescriptorData::CSV(data) = filename {
             let path = Path::new(&data.filename);
             if !path.exists() {
                 let s = format!("{}", path.display());
@@ -170,8 +170,8 @@ fn generate_context_test() {
     );
 
     let ast = Ast {
-        loadable_filenames: vec![
-            LoadableFormatData::CSV(CSVData {
+        file_descriptors: vec![
+            FileDescriptorData::CSV(CSVData {
                 filename: "contoso/DimAccount.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
@@ -179,7 +179,7 @@ fn generate_context_test() {
                 max_read_records: Some(100),
                 has_header: true,
             }),
-            LoadableFormatData::CSV(CSVData {
+            FileDescriptorData::CSV(CSVData {
                 filename: "contoso/DimChannel.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
@@ -187,7 +187,7 @@ fn generate_context_test() {
                 max_read_records: Some(100),
                 has_header: true,
             }),
-            LoadableFormatData::CSV(CSVData {
+            FileDescriptorData::CSV(CSVData {
                 filename: "contoso/DimCurrency.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
@@ -195,7 +195,7 @@ fn generate_context_test() {
                 max_read_records: Some(100),
                 has_header: true,
             }),
-            LoadableFormatData::CSV(CSVData {
+            FileDescriptorData::CSV(CSVData {
                 filename: "contoso/DimCustomer.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
@@ -203,7 +203,7 @@ fn generate_context_test() {
                 max_read_records: Some(100),
                 has_header: true,
             }),
-            LoadableFormatData::CSV(CSVData {
+            FileDescriptorData::CSV(CSVData {
                 filename: "contoso/DimDate.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
@@ -211,7 +211,7 @@ fn generate_context_test() {
                 max_read_records: Some(100),
                 has_header: true,
             }),
-            LoadableFormatData::CSV(CSVData {
+            FileDescriptorData::CSV(CSVData {
                 filename: "contoso/DimEmployee.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
@@ -219,7 +219,7 @@ fn generate_context_test() {
                 max_read_records: Some(100),
                 has_header: true,
             }),
-            LoadableFormatData::CSV(CSVData {
+            FileDescriptorData::CSV(CSVData {
                 filename: "contoso/DimEntity.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
@@ -227,7 +227,7 @@ fn generate_context_test() {
                 max_read_records: Some(100),
                 has_header: true,
             }),
-            LoadableFormatData::CSV(CSVData {
+            FileDescriptorData::CSV(CSVData {
                 filename: "contoso/DimGeography.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
@@ -235,7 +235,7 @@ fn generate_context_test() {
                 max_read_records: Some(100),
                 has_header: true,
             }),
-            LoadableFormatData::CSV(CSVData {
+            FileDescriptorData::CSV(CSVData {
                 filename: "contoso/DimMachine.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
@@ -243,7 +243,7 @@ fn generate_context_test() {
                 max_read_records: Some(100),
                 has_header: true,
             }),
-            LoadableFormatData::CSV(CSVData {
+            FileDescriptorData::CSV(CSVData {
                 filename: "contoso/DimOutage.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
@@ -251,7 +251,7 @@ fn generate_context_test() {
                 max_read_records: Some(100),
                 has_header: true,
             }),
-            LoadableFormatData::CSV(CSVData {
+            FileDescriptorData::CSV(CSVData {
                 filename: "contoso/DimProduct.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
@@ -259,7 +259,7 @@ fn generate_context_test() {
                 max_read_records: Some(100),
                 has_header: true,
             }),
-            LoadableFormatData::CSV(CSVData {
+            FileDescriptorData::CSV(CSVData {
                 filename: "contoso/DimProductCategory.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
@@ -267,7 +267,7 @@ fn generate_context_test() {
                 max_read_records: Some(100),
                 has_header: true,
             }),
-            LoadableFormatData::CSV(CSVData {
+            FileDescriptorData::CSV(CSVData {
                 filename: "contoso/DimProductSubcategory.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
@@ -275,7 +275,7 @@ fn generate_context_test() {
                 max_read_records: Some(100),
                 has_header: true,
             }),
-            LoadableFormatData::CSV(CSVData {
+            FileDescriptorData::CSV(CSVData {
                 filename: "contoso/DimPromotion.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
@@ -283,7 +283,7 @@ fn generate_context_test() {
                 max_read_records: Some(100),
                 has_header: true,
             }),
-            LoadableFormatData::CSV(CSVData {
+            FileDescriptorData::CSV(CSVData {
                 filename: "contoso/DimSalesTerritory.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
@@ -291,7 +291,7 @@ fn generate_context_test() {
                 max_read_records: Some(100),
                 has_header: true,
             }),
-            LoadableFormatData::CSV(CSVData {
+            FileDescriptorData::CSV(CSVData {
                 filename: "contoso/DimScenario.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
@@ -299,7 +299,7 @@ fn generate_context_test() {
                 max_read_records: Some(100),
                 has_header: true,
             }),
-            LoadableFormatData::CSV(CSVData {
+            FileDescriptorData::CSV(CSVData {
                 filename: "contoso/DimStore.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
@@ -307,7 +307,7 @@ fn generate_context_test() {
                 max_read_records: Some(100),
                 has_header: true,
             }),
-            LoadableFormatData::CSV(CSVData {
+            FileDescriptorData::CSV(CSVData {
                 filename: "contoso/FactExchangeRate.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
@@ -315,7 +315,7 @@ fn generate_context_test() {
                 max_read_records: Some(100),
                 has_header: true,
             }),
-            LoadableFormatData::CSV(CSVData {
+            FileDescriptorData::CSV(CSVData {
                 filename: "contoso/FactInventory.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
@@ -323,7 +323,7 @@ fn generate_context_test() {
                 max_read_records: Some(100),
                 has_header: true,
             }),
-            LoadableFormatData::CSV(CSVData {
+            FileDescriptorData::CSV(CSVData {
                 filename: "contoso/FactITMachine.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
@@ -331,7 +331,7 @@ fn generate_context_test() {
                 max_read_records: Some(100),
                 has_header: true,
             }),
-            LoadableFormatData::CSV(CSVData {
+            FileDescriptorData::CSV(CSVData {
                 filename: "contoso/FactITSLA.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
@@ -339,7 +339,7 @@ fn generate_context_test() {
                 max_read_records: Some(100),
                 has_header: true,
             }),
-            LoadableFormatData::CSV(CSVData {
+            FileDescriptorData::CSV(CSVData {
                 filename: "contoso/FactOnlineSales.csv".to_string(),
                 separator: None,
                 field_types: online_sales_field_types,
@@ -347,7 +347,7 @@ fn generate_context_test() {
                 max_read_records: Some(100),
                 has_header: true,
             }),
-            LoadableFormatData::CSV(CSVData {
+            FileDescriptorData::CSV(CSVData {
                 filename: "contoso/FactSales.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
@@ -355,7 +355,7 @@ fn generate_context_test() {
                 max_read_records: Some(100),
                 has_header: true,
             }),
-            LoadableFormatData::CSV(CSVData {
+            FileDescriptorData::CSV(CSVData {
                 filename: "contoso/FactSalesQuota.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
@@ -363,7 +363,7 @@ fn generate_context_test() {
                 max_read_records: Some(100),
                 has_header: true,
             }),
-            LoadableFormatData::CSV(CSVData {
+            FileDescriptorData::CSV(CSVData {
                 filename: "contoso/FactStrategyPlan.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
@@ -402,7 +402,7 @@ fn datetime_format_test() {
     );
 
     let expected_ast = Ast {
-        loadable_filenames: vec![LoadableFormatData::CSV(CSVData {
+        file_descriptors: vec![FileDescriptorData::CSV(CSVData {
             filename: "contoso/FactITSLA.csv".to_string(),
             separator: None,
             field_types: dim_date_field_types,
@@ -438,7 +438,7 @@ fn date_format_test() {
     );
 
     let expected_ast = Ast {
-        loadable_filenames: vec![LoadableFormatData::CSV(CSVData {
+        file_descriptors: vec![FileDescriptorData::CSV(CSVData {
             filename: "contoso/DimDate.csv".to_string(),
             separator: None,
             field_types: dim_date_field_types,
@@ -504,8 +504,8 @@ fn parse_to_context_test() {
     );
 
     let expected_ast = Ast {
-        loadable_filenames: vec![
-            LoadableFormatData::CSV(CSVData {
+        file_descriptors: vec![
+            FileDescriptorData::CSV(CSVData {
                 filename: "contoso/DimAccount.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
@@ -513,7 +513,7 @@ fn parse_to_context_test() {
                 max_read_records: Some(100),
                 has_header: true,
             }),
-            LoadableFormatData::CSV(CSVData {
+            FileDescriptorData::CSV(CSVData {
                 filename: "contoso/DimChannel.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
@@ -521,7 +521,7 @@ fn parse_to_context_test() {
                 max_read_records: Some(100),
                 has_header: true,
             }),
-            LoadableFormatData::CSV(CSVData {
+            FileDescriptorData::CSV(CSVData {
                 filename: "contoso/DimCurrency.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
@@ -529,7 +529,7 @@ fn parse_to_context_test() {
                 max_read_records: Some(100),
                 has_header: true,
             }),
-            LoadableFormatData::CSV(CSVData {
+            FileDescriptorData::CSV(CSVData {
                 filename: "contoso/DimCustomer.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
@@ -537,7 +537,7 @@ fn parse_to_context_test() {
                 max_read_records: Some(100),
                 has_header: true,
             }),
-            LoadableFormatData::CSV(CSVData {
+            FileDescriptorData::CSV(CSVData {
                 filename: "contoso/DimDate.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
@@ -545,7 +545,7 @@ fn parse_to_context_test() {
                 max_read_records: Some(100),
                 has_header: true,
             }),
-            LoadableFormatData::CSV(CSVData {
+            FileDescriptorData::CSV(CSVData {
                 filename: "contoso/DimEmployee.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
@@ -553,7 +553,7 @@ fn parse_to_context_test() {
                 max_read_records: Some(100),
                 has_header: true,
             }),
-            LoadableFormatData::CSV(CSVData {
+            FileDescriptorData::CSV(CSVData {
                 filename: "contoso/DimEntity.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
@@ -561,7 +561,7 @@ fn parse_to_context_test() {
                 max_read_records: Some(100),
                 has_header: true,
             }),
-            LoadableFormatData::CSV(CSVData {
+            FileDescriptorData::CSV(CSVData {
                 filename: "contoso/DimGeography.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
@@ -569,7 +569,7 @@ fn parse_to_context_test() {
                 max_read_records: Some(100),
                 has_header: true,
             }),
-            LoadableFormatData::CSV(CSVData {
+            FileDescriptorData::CSV(CSVData {
                 filename: "contoso/DimMachine.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
@@ -577,7 +577,7 @@ fn parse_to_context_test() {
                 max_read_records: Some(100),
                 has_header: true,
             }),
-            LoadableFormatData::CSV(CSVData {
+            FileDescriptorData::CSV(CSVData {
                 filename: "contoso/DimOutage.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
@@ -585,7 +585,7 @@ fn parse_to_context_test() {
                 max_read_records: Some(100),
                 has_header: true,
             }),
-            LoadableFormatData::CSV(CSVData {
+            FileDescriptorData::CSV(CSVData {
                 filename: "contoso/DimProduct.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
@@ -593,7 +593,7 @@ fn parse_to_context_test() {
                 max_read_records: Some(100),
                 has_header: true,
             }),
-            LoadableFormatData::CSV(CSVData {
+            FileDescriptorData::CSV(CSVData {
                 filename: "contoso/DimProductCategory.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
@@ -601,7 +601,7 @@ fn parse_to_context_test() {
                 max_read_records: Some(100),
                 has_header: true,
             }),
-            LoadableFormatData::CSV(CSVData {
+            FileDescriptorData::CSV(CSVData {
                 filename: "contoso/DimProductSubcategory.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
@@ -609,7 +609,7 @@ fn parse_to_context_test() {
                 max_read_records: Some(100),
                 has_header: true,
             }),
-            LoadableFormatData::CSV(CSVData {
+            FileDescriptorData::CSV(CSVData {
                 filename: "contoso/DimPromotion.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
@@ -617,7 +617,7 @@ fn parse_to_context_test() {
                 max_read_records: Some(100),
                 has_header: true,
             }),
-            LoadableFormatData::CSV(CSVData {
+            FileDescriptorData::CSV(CSVData {
                 filename: "contoso/DimSalesTerritory.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
@@ -625,7 +625,7 @@ fn parse_to_context_test() {
                 max_read_records: Some(100),
                 has_header: true,
             }),
-            LoadableFormatData::CSV(CSVData {
+            FileDescriptorData::CSV(CSVData {
                 filename: "contoso/DimScenario.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
@@ -633,7 +633,7 @@ fn parse_to_context_test() {
                 max_read_records: Some(100),
                 has_header: true,
             }),
-            LoadableFormatData::CSV(CSVData {
+            FileDescriptorData::CSV(CSVData {
                 filename: "contoso/DimStore.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
@@ -641,7 +641,7 @@ fn parse_to_context_test() {
                 max_read_records: Some(100),
                 has_header: true,
             }),
-            LoadableFormatData::CSV(CSVData {
+            FileDescriptorData::CSV(CSVData {
                 filename: "contoso/FactExchangeRate.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
@@ -649,7 +649,7 @@ fn parse_to_context_test() {
                 max_read_records: Some(100),
                 has_header: true,
             }),
-            LoadableFormatData::CSV(CSVData {
+            FileDescriptorData::CSV(CSVData {
                 filename: "contoso/FactInventory.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
@@ -657,7 +657,7 @@ fn parse_to_context_test() {
                 max_read_records: Some(100),
                 has_header: true,
             }),
-            LoadableFormatData::CSV(CSVData {
+            FileDescriptorData::CSV(CSVData {
                 filename: "contoso/FactITMachine.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
@@ -665,7 +665,7 @@ fn parse_to_context_test() {
                 max_read_records: Some(100),
                 has_header: true,
             }),
-            LoadableFormatData::CSV(CSVData {
+            FileDescriptorData::CSV(CSVData {
                 filename: "contoso/FactITSLA.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
@@ -673,7 +673,7 @@ fn parse_to_context_test() {
                 max_read_records: Some(100),
                 has_header: true,
             }),
-            LoadableFormatData::CSV(CSVData {
+            FileDescriptorData::CSV(CSVData {
                 filename: "contoso/FactOnlineSales.csv".to_string(),
                 separator: None,
                 field_types: online_sales_field_types,
@@ -681,7 +681,7 @@ fn parse_to_context_test() {
                 max_read_records: Some(100),
                 has_header: true,
             }),
-            LoadableFormatData::CSV(CSVData {
+            FileDescriptorData::CSV(CSVData {
                 filename: "contoso/FactSales.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
@@ -689,7 +689,7 @@ fn parse_to_context_test() {
                 max_read_records: Some(100),
                 has_header: true,
             }),
-            LoadableFormatData::CSV(CSVData {
+            FileDescriptorData::CSV(CSVData {
                 filename: "contoso/FactSalesQuota.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
@@ -697,7 +697,7 @@ fn parse_to_context_test() {
                 max_read_records: Some(100),
                 has_header: true,
             }),
-            LoadableFormatData::CSV(CSVData {
+            FileDescriptorData::CSV(CSVData {
                 filename: "contoso/FactStrategyPlan.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),

@@ -1,18 +1,56 @@
+/// This module is a parser for the data modelling language of tldr.
+/// 
+/// Every tldr script has to read in somedata first
+/// 
+/// tldr_input_language     = "load_files" file_descriptor ["," file_descriptor]* ","?
+/// 
+/// file_descriptor         = "(" name_parameter_block ["," name_parameter_block]* ","? ")"
+/// 
+/// name_parameter_block    = "csv_file_name" ":" \"file_path\"
+///                         | "delimiter" ":" \"char\"
+///                         | "has_header" ":" (true|false)
+///                         | "max_read_records" ":" number
+///                         | "field_types" ":" "(" field_type_descriptor ["," field_type_descriptor]* ","? ")"
+///
+///     >>> a csv_file_name block must be given
+///     >>> a delimiter block gives the separator of values in the file
+///     >>> a has_header block indicates whether the file contains headers or not
+///     >>> a max_read_records block gives the number of rows to be read to determine the schema
+///     >>> a field_types block can overwrite some or all entries on the schema
+/// 
+/// field_type_descriptor   = "name" ":" \"name\"
+///                         | "type" ":" type 
+/// 
+/// type                    = "int8" (true|false)
+///                         | "int16" (true|false)
+///                         | "int32" (true|false)
+///                         | "int64" (true|false)
+///                         | "uint8" (true|false)
+///                         | "uint16" (true|flase)
+///                         | "uint32" (true|false)
+///                         | "uint64" (true|false)
+///                         | "float32" (true|false)
+///                         | "float64" (true|false)
+///                         | "null"
+///                         | "boolean" (true|false)
+///                         | "binary" (true|false)
+///                         | "string" (true|false)
+///                         | "duration" (true|false) time_unit
+///                         | "time" (true|false) \"format_string\"
+///                         | "date" (true|false) \"format_string\"
+///                         | "datetime" (true|false) \"format_string\"
+/// 
+///     >>> the first parameter indicates whether the field is nullable or not
+/// 
+
 use arrow::datatypes::TimeUnit;
 use std::collections::HashMap;
 
 use nom::{
-    branch::alt,
-    bytes::complete::{tag, take_until},
-    character::complete::{char, multispace0},
-    combinator::{map, opt},
-    error::ParseError,
-    multi::many1,
-    sequence::{delimited, pair, preceded, separated_pair, tuple},
-    IResult, Parser,
+    branch::alt, bytes::complete::{tag, take_until}, character::{complete::{u32, char, multispace0}, streaming::anychar}, combinator::{map, opt}, error::ParseError, multi::{many1, separated_list1}, number::complete::u32, sequence::{delimited, pair, preceded, separated_pair, tuple}, IResult, Parser
 };
 
-use super::ast::{Ast, CSVData, DataTypeDescriptor, LoadableFormatData};
+use super::ast::{Ast, CSVData, DataTypeDescriptor, FileDescriptorData};
 
 /// A combinator that takes a parser `inner` and produces a parser that also consumes both leading and
 /// trailing whitespace, returning the output of `inner`.
@@ -23,25 +61,72 @@ where
     delimited(multispace0, inner, multispace0)
 }
 
+
+/// entry point of the parser. 
+/// 
+/// Here we encode the rule for tldr_input_language:
+/// 
+/// tldr_input_language     = "load_files" file_descriptor ["," file_descriptor]* ","?
+/// 
 pub fn ast_parser(input: &str) -> IResult<&str, Ast> {
-    map(
-        pair(ws(tag("load_files")), ws(file_descriptors_parser)),
-        |(_, fs)| Ast {
-            loadable_filenames: fs,
-        },
-    )(input)
+    let start = ws(tag("load_files"));
+    let mid = ws(separated_list1(ws(tag(",")), ws(file_descriptor_parser)));
+    let end = ws(opt(tag(",")));
+
+    let parser = delimited(start, mid, end);
+
+    map( parser, |file_descriptors| Ast{ file_descriptors})(input)
+
 }
 
-fn file_descriptors_parser(input: &str) -> IResult<&str, Vec<LoadableFormatData>> {
-    many1(file_descriptor_parser)(input)
+
+enum FileDescriptorEntryType<'a> {
+    FileName(&'a str),
+    Delimiter(u8),
+    HasHeader(bool),
+    MaxNumRecords(Option<usize>),
+    FieldTypes(Vec<DataTypeDescriptor<'a>>),
 }
 
-fn file_descriptor_parser(input: &str) -> IResult<&str, LoadableFormatData> {
+/// Here, we parse the entries of the file-descriptor block
+/// 
+/// name_parameter_block    = "csv_file_name" ":" \"file_path\"
+///                         | "delimiter" ":" \"char\"
+///                         | "has_header" ":" (true|false)
+///                         | "max_read_records" ":" number
+///                         | "field_types" ":" "(" field_type_descriptor ["," field_type_descriptor]* ","? ")"
+/// 
+fn file_descriptor_parser(input: &str) -> IResult<&str, FileDescriptorData> {
+    
+    let csv_file_name_block = map(
+        tuple((ws(tag("csv_file_name")), ws(tag(":")), ws(string_parser))),
+        |(_,_,s)| FileDescriptorEntryType::FileName(s)
+    );
+
+    let delimiter_block = map(
+        tuple((ws(tag("delimiter")), ws(tag(":")), ws(char_parser))),
+        |(_,_,c)| FileDescriptorEntryType::Delimiter(c)
+    );
+    
+    let has_header_block = map(
+        tuple((ws(tag("has_header")), ws(tag(":")), ws(bool_parser))),
+        |(_,_,b)| FileDescriptorEntryType::HasHeader(b)
+    );
+
+    let max_read_records_block = map (
+        tuple((ws(tag("max_read_records")), ws(tag(":")), ws(opt(usize_parser)))),
+        |(_,_,n)| FileDescriptorEntryType::MaxNumRecords(n)
+    );
+
+    let field_types_block = map(
+        tuple((ws(tag("field_types")), ws(tag(":")), ws(schema_parser))),
+        |(_,_,s)| FileDescriptorEntryType::FieldTypes(s)
+    );
+
     let csv_head = tuple((
-        ws(tag("CSV")),
         ws(tag("(")),
-        ws(tag("file_name")),
-        ws(tag("=")),
+        ws(tag("csv_file_name")),
+        ws(tag(":")),
     ));
     let csv_tail = ws(tag(")"));
     let csv_contents = pair(ws(string_parser), preceded(ws(tag(",")), ws(schema_parser)));
@@ -49,7 +134,7 @@ fn file_descriptor_parser(input: &str) -> IResult<&str, LoadableFormatData> {
     let csv_parser = delimited(csv_head, csv_contents, csv_tail);
 
     let mut csv_map = map(csv_parser, |(f, g)| {
-        LoadableFormatData::CSV(CSVData {
+        FileDescriptorData::CSV(CSVData {
             filename: f.to_string(),
             separator: None,
             field_types: g,
@@ -89,6 +174,17 @@ fn schema_entry_parser(input: &str) -> IResult<&str, (&str, DataTypeDescriptor)>
 /// strings have the shape (double quotes) string (w/o double quotes) (double quotes)
 fn string_parser(input: &str) -> IResult<&str, &str> {
     delimited(char('"'), take_until("\""), char('"'))(input)
+}
+
+/// parse a single char in double quotes 
+fn char_parser(input: &str) -> IResult<&str, u8> {
+    delimited(char('"'), anychar, char('"'))
+        (input)
+        .map(|(s,c)| (s,c as u8))
+}
+
+fn usize_parser(input: &str) -> IResult<&str, usize> {
+    u32(input).map(|(s,d)| (s,d as usize))
 }
 
 fn time_unit_parser(input: &str) -> IResult<&str, TimeUnit> {
@@ -227,7 +323,7 @@ fn ast_parser_test() {
         Ok((
             "",
             Ast {
-                loadable_filenames: vec![LoadableFormatData::CSV(
+                file_descriptors: vec![FileDescriptorData::CSV(
                     CSVData {
                         filename:"dir/fn.csv".to_string(),
                         separator:None,
@@ -252,7 +348,7 @@ fn file_descriptor_parser_test() {
         ),
         Ok((
             "",
-            LoadableFormatData::CSV(CSVData {
+            FileDescriptorData::CSV(CSVData {
                 filename:"dir/fn.csv".to_string(),
                 separator:None,
                 field_types:expected_schema, 

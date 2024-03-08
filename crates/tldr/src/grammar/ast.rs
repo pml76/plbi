@@ -64,13 +64,13 @@ pub struct CSVData<'a> {
 }
 
 #[derive(PartialEq, Debug)]
-pub enum LoadableFormatData<'a> {
+pub enum FileDescriptorData<'a> {
     CSV(CSVData<'a>),
 }
 
 #[derive(PartialEq, Debug)]
 pub struct Ast<'a> {
-    pub loadable_filenames: Vec<LoadableFormatData<'a>>,
+    pub file_descriptors: Vec<FileDescriptorData<'a>>,
 }
 
 impl<'a> CSVData<'a> {
