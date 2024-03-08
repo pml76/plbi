@@ -117,63 +117,7 @@ fn load_base_tables(
                     Arc::new(m)
                 );
 
-                
-                for (field_name, field_type) in data.field_types {
-                    if schema.field_with_name(field_name.as_str()).is_err() {
-                        continue;
-                    }
-                    if let DataTypeDescriptor::Date(f) = field_type {
-                        let q1 = col(field_name).str().to_date(StrptimeOptions {
-                            format: Some(f.to_string()),
-                            ..Default::default()
-                        });
-                        let q2 = col("*").exclude([field_name]);
-
-                        let tmp = df.clone().lazy().select([q1, q2]).collect();
-                        if tmp.is_err() {
-                            continue;
-                        }
-                        df = tmp.unwrap();
-                    }
-                    if let DataTypeDescriptor::Datetime(f, tu, st) = field_type {
-                        let q1 = col(field_name).str().to_datetime(
-                            Some(*tu),
-                            st.clone(),
-                            StrptimeOptions {
-                                format: Some(f.to_string()),
-                                ..Default::default()
-                            },
-                            lit("f"),
-                        );
-                        let q2 = col("*").exclude([field_name]);
-
-                        let tmp = df.clone().lazy().select([q1, q2]).collect();
-                        if tmp.is_err() {
-                            continue;
-                        }
-                        df = tmp.unwrap();
-                    }
-                    if let DataTypeDescriptor::Time(format_string) = field_type {
-                        let q1 = col(field_name).str().to_date(StrptimeOptions {
-                            format: Some(format_string.to_string()),
-                            ..Default::default()
-                        });
-                        let q2 = col("*").exclude([field_name]);
-
-                        let tmp = df.clone().lazy().select([q1, q2]).collect();
-                        if tmp.is_err() {
-                            continue;
-                        }
-                        df = tmp.unwrap();
-                    }
-                }
-            
-                if path.file_stem().is_none() {
-                    let s = format!("{}", path.display());
-                    return Err(TldrError::TldrFileNameWithoutStem(s));
-                }
-                batches.insert(path.file_stem().unwrap().to_str().unwrap().to_string(), df);
-                continue;
+                // TODO: Cast Date and Time types into the proper type
             }
         }
 
