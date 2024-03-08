@@ -31,24 +31,24 @@ pub enum DataTypeDescriptor<'a> {
 impl<'a> DataTypeDescriptor<'a> {
     pub fn is_nullable(&self) -> bool {
         match self {
-            &DataTypeDescriptor::UInt8(b) => b,
-            &DataTypeDescriptor::UInt16(b) => b,
-            &DataTypeDescriptor::UInt32(b) => b,
-            &DataTypeDescriptor::UInt64(b) => b,
-            &DataTypeDescriptor::Int8(b) => b,
-            &DataTypeDescriptor::Int16(b) => b,
-            &DataTypeDescriptor::Int32(b) => b,
-            &DataTypeDescriptor::Int64(b) => b,
-            &DataTypeDescriptor::Float32(b) => b,
-            &DataTypeDescriptor::Float64(b) => b,
-            &DataTypeDescriptor::Boolean(b) => b,
-            &DataTypeDescriptor::Binary(b) => b,
-            &DataTypeDescriptor::String(b) => b,
-            &DataTypeDescriptor::Duration(b, _) => b,
-            &DataTypeDescriptor::Time(b, _) => b,
-            &DataTypeDescriptor::Date(b, _) => b,
-            &DataTypeDescriptor::Datetime(b, _, _, _) => b,
-            &DataTypeDescriptor::Null => true,
+            DataTypeDescriptor::UInt8(b) => *b,
+            DataTypeDescriptor::UInt16(b) => *b,
+            DataTypeDescriptor::UInt32(b) => *b,
+            DataTypeDescriptor::UInt64(b) => *b,
+            DataTypeDescriptor::Int8(b) => *b,
+            DataTypeDescriptor::Int16(b) => *b,
+            DataTypeDescriptor::Int32(b) => *b,
+            DataTypeDescriptor::Int64(b) => *b,
+            DataTypeDescriptor::Float32(b) => *b,
+            DataTypeDescriptor::Float64(b) => *b,
+            DataTypeDescriptor::Boolean(b) => *b,
+            DataTypeDescriptor::Binary(b) => *b,
+            DataTypeDescriptor::String(b) => *b,
+            DataTypeDescriptor::Duration(b, _) => *b,
+            DataTypeDescriptor::Time(b, _) => *b,
+            DataTypeDescriptor::Date(b, _) => *b,
+            DataTypeDescriptor::Datetime(b, _, _, _) => *b,
+            DataTypeDescriptor::Null => true,
         }
     }
 }
@@ -58,6 +58,9 @@ pub struct CSVData<'a> {
     pub filename: String,
     pub separator: Option<String>,
     pub field_types: HashMap<String, DataTypeDescriptor<'a>>,
+    pub delimiter: u8,
+    pub max_read_records: Option<usize>,
+    pub has_header: bool,
 }
 
 #[derive(PartialEq, Debug)]
@@ -76,6 +79,9 @@ impl<'a> CSVData<'a> {
             filename,
             separator,
             field_types: HashMap::new(),
+            delimiter: (";".as_bytes())[0],
+            max_read_records: Some(100),
+            has_header: true,
         }
     }
 }

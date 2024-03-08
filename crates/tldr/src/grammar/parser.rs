@@ -53,6 +53,9 @@ fn file_descriptor_parser(input: &str) -> IResult<&str, LoadableFormatData> {
             filename: f.to_string(),
             separator: None,
             field_types: g,
+            delimiter: (";".as_bytes())[0],
+            max_read_records: Some(100),
+            has_header: true,
         })
     });
 
@@ -96,13 +99,15 @@ fn time_unit_parser(input: &str) -> IResult<&str, TimeUnit> {
     alt((nanoseconds_parser, microseconds_parser, milliseconds_parser))(input)
 }
 
-/// A parser for data types
-fn data_type_parser(input: &str) -> IResult<&str, DataTypeDescriptor> {
-    let is_nullable_parser = map(
+fn is_nullable_parser(input: &str) -> IResult<&str, bool> {
+    map(
         tuple((ws(tag("is_nullable")), ws(tag(":")), ws(bool_parser))),
         |(_, _, b)| b,
-    );
+    )(input)
+}
 
+/// A parser for data types
+fn data_type_parser(input: &str) -> IResult<&str, DataTypeDescriptor> {
     let boolean_type_parser = map(
         tuple((ws(tag("boolean")), ws(is_nullable_parser))),
         |(_, b)| DataTypeDescriptor::Boolean(b),
@@ -222,11 +227,15 @@ fn ast_parser_test() {
         Ok((
             "",
             Ast {
-                loadable_filenames: vec![LoadableFormatData::CSV(CSVData {
-                    filename: "dir/fn.csv".to_string(),
-                    separator: None,
-                    field_types: expected_schema,
-                })]
+                loadable_filenames: vec![LoadableFormatData::CSV(
+                    CSVData {
+                        filename:"dir/fn.csv".to_string(),
+                        separator:None,
+                        field_types:expected_schema, 
+                        delimiter: (";".as_bytes())[0], 
+                        max_read_records: Some(100), 
+                        has_header: true 
+                    })]
             }
         ))
     );
@@ -244,9 +253,12 @@ fn file_descriptor_parser_test() {
         Ok((
             "",
             LoadableFormatData::CSV(CSVData {
-                filename: "dir/fn.csv".to_string(),
-                separator: None,
-                field_types: expected_schema,
+                filename:"dir/fn.csv".to_string(),
+                separator:None,
+                field_types:expected_schema, 
+                delimiter: (";".as_bytes())[0], 
+                max_read_records: Some(100), 
+                has_header: true 
             })
         ))
     )

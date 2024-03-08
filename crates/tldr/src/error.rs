@@ -8,4 +8,5 @@ pub enum TldrError {
     TldrCouldNotReadSchema(String),
     TldrCouldNotMergeSchemas(String),
     TldrCouldNotCreateMemTable(String),
+    TldrCouldNotRegisterTable(String),
 }
