@@ -90,10 +90,22 @@ fn load_base_tables(
 
                 let mut batches = Vec::new();
                 for batch in csv_reader {
+                
                     if batch.is_err() {
                         return Err(TldrError::TldrCouldNotReadFile(data.filename));
                     }
-                    batches.push(batch.unwrap());
+                    let batch = batch.unwrap();
+                    let s = batch.schema();
+                    let fields = *s.fields();
+                    for field_type in data.field_types {
+                        if let DataTypeDescriptor::Date(b,f) = field_type.1 {
+                            if let Some((n,f)) = fields.find(field_type.0.as_str()) {
+                                let arr = batch.remove_column(n);
+                                
+                            }
+                        }
+                    }
+                    batches.push(b);
                 }
                 let m = MemTable::try_new(
                     Arc::new(schema), 
@@ -106,8 +118,8 @@ fn load_base_tables(
                 );
 
                 
-                for (field_name, field_type) in data.field_types.as_ref().unwrap() {
-                    if schema.get_field(field_name).is_none() {
+                for (field_name, field_type) in data.field_types {
+                    if schema.field_with_name(field_name.as_str()).is_err() {
                         continue;
                     }
                     if let DataTypeDescriptor::Date(f) = field_type {

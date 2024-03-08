@@ -13,13 +13,5 @@ arrow = "50"
 arrow-csv = "50"
 arrow-odbc = "8.0.0"
 
-dbconnector = { version = "0.3.3", path = "crates/dbconnector", features = [
-    "src_csv", 
-    "src_sqlite", 
-    "src_postgres", 
-    "src_oracle", 
-    "src_mssql", 
-    "dst_arrow",
-    ] }
-
-datafusion= { version = "36.0.0", features = ["apache-avro", "avro", "backtrace", "force_hash_collisions", "math_expressions", "num-traits", "serde"]}
+datafusion = { version = "36.0.0", features = ["apache-avro", "avro", "backtrace", "force_hash_collisions", "math_expressions", "num-traits", "serde"]}
+tokio = {version = "1.36.0", features = ["full"]}

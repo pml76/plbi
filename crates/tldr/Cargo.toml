@@ -28,6 +28,8 @@ datafusion = {workspace = true}
 arrow = {workspace = true}
 arrow-csv = {workspace = true}
 arrow-odbc = {workspace = true}
+tokio = {workspace = true}
+
 
 
 
