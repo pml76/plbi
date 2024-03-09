@@ -21,7 +21,7 @@
 /// field_type_descriptor   = "name" ":" \"name\"
 ///                         | "type" ":" type 
 /// 
-/// type                    = "int8" (true|false)
+/// type                    = "int8"  ["(" "is_nullable" ":" (true|false) ")"]?
 ///                         | "int16" (true|false)
 ///                         | "int32" (true|false)
 ///                         | "int64" (true|false)
@@ -43,11 +43,18 @@
 ///     >>> the first parameter indicates whether the field is nullable or not
 /// 
 
-use arrow::datatypes::TimeUnit;
+use arrow::{compute::is_null, datatypes::TimeUnit};
 use std::collections::HashMap;
 
 use nom::{
-    branch::{alt, permutation}, bytes::complete::{tag, take_until}, character::{complete::{char, multispace0, u32}, streaming::anychar}, combinator::{map, opt}, error::ParseError, multi::{many1, separated_list1}, number::complete::u32, sequence::{delimited, pair, preceded, separated_pair, tuple}, IResult, Parser
+    branch::{alt, permutation}, 
+    bytes::complete::{tag, take_until}, 
+    character::{ complete::{char, multispace0, u32}, 
+                 streaming::anychar}, 
+                 combinator::{map, opt}, 
+                 error::ParseError, multi::{many1, separated_list1}, 
+                 sequence::{delimited, separated_pair, tuple}, 
+    IResult, Parser
 };
 
 use super::ast::{Ast, CSVData, DataTypeDescriptor, FileDescriptorData};
@@ -131,8 +138,12 @@ fn file_descriptor_parser(input: &str) -> IResult<&str, FileDescriptorData> {
     let mut max_read_records = Some(100);
 
     map(any_of_that, 
-        |(csv_file_path, field_types, delimiter, has_header, max_read_records)| {
-            CSVData{
+        |( csv_file_path, 
+              field_types, 
+              delimiter, 
+              has_header, 
+              max_read_records)| {
+            FileDescriptorData::CSV(CSVData{
                 csv_file_path,
                 field_types: { 
                     if let Some(f) = field_types { 
@@ -163,20 +174,24 @@ fn file_descriptor_parser(input: &str) -> IResult<&str, FileDescriptorData> {
                     }
                 },
             }
-        })(input)
+        )})(input)
 
 
 }
 
 fn schema_parser<'a>(input: &str) -> IResult<&str, HashMap<&'a str, DataTypeDescriptor>> {
-    let head = tuple((ws(tag("field_types")), ws(tag("{"))));
-    let tail = ws(tag("}"));
-    let parser = many1(schema_entry_parser);
+    let head = tuple((ws(tag("field_types")), ws(tag("("))));
+    let tail = tuple((opt(ws(tag(","))), ws(tag(")"))));
+    let parser = 
+        separated_list1(
+            ws(tag(",")),
+            schema_entry_parser
+        );
 
     let parser_map = map(parser, |entries| {
         let mut ret = HashMap::new();
         for (k, v) in entries {
-            ret.insert(k.to_string(), v);
+            ret.insert(k, v);
         }
         ret
     });
@@ -185,11 +200,11 @@ fn schema_parser<'a>(input: &str) -> IResult<&str, HashMap<&'a str, DataTypeDesc
 }
 
 fn schema_entry_parser(input: &str) -> IResult<&str, (&str, DataTypeDescriptor)> {
-    let head = ws(tag("("));
-    let tail = ws(tag(")"));
-    let parser = separated_pair(string_parser, ws(tag(":")), data_type_parser);
-
-    delimited(head, parser, tail)(input)
+    separated_pair(
+        string_parser, 
+        ws(tag(":")), 
+        data_type_parser
+    )(input)
 }
 
 /// strings have the shape (double quotes) string (w/o double quotes) (double quotes)
@@ -223,30 +238,52 @@ fn is_nullable_parser(input: &str) -> IResult<&str, bool> {
     )(input)
 }
 
+fn format_parser(input: &str) -> IResult<&str, &str> {
+    map(
+        tuple((ws(tag("format")), ws(tag(":")), ws(string_parser))),
+        |(_,_,s)| s
+    )(input)
+}
+
 /// A parser for data types
 fn data_type_parser(input: &str) -> IResult<&str, DataTypeDescriptor> {
+
+    let is_nullable_parameter_parser = map(opt(delimited(
+            ws(tag("(")),
+            ws(is_nullable_parser),
+            ws(tag(")")),
+        )),
+    |b|{ 
+            if let Some(b) = b  {
+                b
+            } else {
+                true
+            }
+        },
+    );
+
     let boolean_type_parser = map(
-        tuple((ws(tag("boolean")), ws(is_nullable_parser))),
+        tuple((ws(tag("boolean")), ws(is_nullable_parameter_parser))),
         |(_, b)| DataTypeDescriptor::Boolean(b),
     );
     let string_type_parser = map(
-        tuple((ws(tag("string")), ws(is_nullable_parser))),
+        tuple((ws(tag("string")), ws(is_nullable_parameter_parser))),
         |(_, b)| DataTypeDescriptor::String(b),
     );
     let uint8_type_parser = map(
-        tuple((ws(tag("uint8")), ws(is_nullable_parser))),
+        tuple((ws(tag("uint8")), ws(is_nullable_parameter_parser))),
         |(_, b)| DataTypeDescriptor::UInt8(b),
     );
     let uint16_type_parser = map(
-        tuple((ws(tag("uint16")), ws(is_nullable_parser))),
+        tuple((ws(tag("uint16")), ws(is_nullable_parameter_parser))),
         |(_, b)| DataTypeDescriptor::UInt16(b),
     );
     let uint32_type_parser = map(
-        tuple((ws(tag("uint32")), ws(is_nullable_parser))),
+        tuple((ws(tag("uint32")), ws(is_nullable_parameter_parser))),
         |(_, b)| DataTypeDescriptor::UInt32(b),
     );
     let uint64_type_parser = map(
-        tuple((ws(tag("uint64")), ws(is_nullable_parser))),
+        tuple((ws(tag("uint64")), ws(is_nullable_parameter_parser))),
         |(_, b)| DataTypeDescriptor::UInt64(b),
     );
     let int8_type_parser = map(
@@ -254,28 +291,28 @@ fn data_type_parser(input: &str) -> IResult<&str, DataTypeDescriptor> {
         |(_, b)| DataTypeDescriptor::Int8(b),
     );
     let int16_type_parser = map(
-        tuple((ws(tag("int16")), ws(is_nullable_parser))),
+        tuple((ws(tag("int16")), ws(is_nullable_parameter_parser))),
         |(_, b)| DataTypeDescriptor::Int16(b),
     );
     let int32_type_parser = map(
-        tuple((ws(tag("int32")), ws(is_nullable_parser))),
+        tuple((ws(tag("int32")), ws(is_nullable_parameter_parser))),
         |(_, b)| DataTypeDescriptor::Int32(b),
     );
     let int64_type_parser = map(
-        tuple((ws(tag("int64")), ws(is_nullable_parser))),
+        tuple((ws(tag("int64")), ws(is_nullable_parameter_parser))),
         |(_, b)| DataTypeDescriptor::Int64(b),
     );
 
     let float32_type_parser = map(
-        tuple((ws(tag("float32")), ws(is_nullable_parser))),
+        tuple((ws(tag("float32")), ws(is_nullable_parameter_parser))),
         |(_, b)| DataTypeDescriptor::Float32(b),
     );
     let float64_type_parser = map(
-        tuple((ws(tag("float64")), ws(is_nullable_parser))),
+        tuple((ws(tag("float64")), ws(is_nullable_parameter_parser))),
         |(_, b)| DataTypeDescriptor::Float64(b),
     );
     let binary_type_parser = map(
-        tuple((ws(tag("binary")), ws(is_nullable_parser))),
+        tuple((ws(tag("binary")), ws(is_nullable_parameter_parser))),
         |(_, b)| DataTypeDescriptor::Binary(b),
     );
     let date_type_parser = map(
@@ -335,21 +372,20 @@ fn bool_parser(i: &str) -> IResult<&str, bool> {
 #[test]
 fn ast_parser_test() {
     let mut expected_schema = HashMap::new();
-    expected_schema.insert("asdf".to_string(), DataTypeDescriptor::Date(false, "%Y"));
+    expected_schema.insert("asdf", DataTypeDescriptor::Date(false, "%Y"));
 
     assert_eq!(
         ast_parser(
-            "load_files CSV(file_name = \"dir/fn.csv\", field_types{ (\"asdf\": Date \"%Y\" is_nullable: false)} )"
+            "load_files (csv_file_name = \"dir/fn.csv\", field_types{ (\"asdf\": Date \"%Y\" is_nullable: false)} )"
         ),
         Ok((
             "",
             Ast {
                 file_descriptors: vec![FileDescriptorData::CSV(
                     CSVData {
-                        csv_file_path:"dir/fn.csv".to_string(),
-                        separator:None,
-                        field_types:expected_schema, 
-                        delimiter: (";".as_bytes())[0], 
+                        csv_file_path:"dir/fn.csv",
+                        field_types: expected_schema, 
+                        delimiter: b';', 
                         max_read_records: Some(100), 
                         has_header: true 
                     })]
@@ -361,7 +397,7 @@ fn ast_parser_test() {
 #[test]
 fn file_descriptor_parser_test() {
     let mut expected_schema = HashMap::new();
-    expected_schema.insert("asdf".to_string(), DataTypeDescriptor::Date(false, "%Y"));
+    expected_schema.insert("asdf", DataTypeDescriptor::Date(false, "%Y"));
 
     assert_eq!(
         file_descriptor_parser(
@@ -370,10 +406,9 @@ fn file_descriptor_parser_test() {
         Ok((
             "",
             FileDescriptorData::CSV(CSVData {
-                csv_file_path:"dir/fn.csv".to_string(),
-                separator:None,
-                field_types:expected_schema, 
-                delimiter: (";".as_bytes())[0], 
+                csv_file_path:"dir/fn.csv",
+                field_types: expected_schema, 
+                delimiter: b';', 
                 max_read_records: Some(100), 
                 has_header: true 
             })
@@ -392,7 +427,7 @@ fn schema_entry_parser_test() {
 #[test]
 fn schema_parser_test() {
     let mut expected_result = HashMap::new();
-    expected_result.insert("asdf".to_string(), DataTypeDescriptor::String(false));
+    expected_result.insert("asdf", DataTypeDescriptor::String(false));
 
     assert_eq!(
         schema_parser("field_types{ (\"asdf\": String) }"),

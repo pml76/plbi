@@ -48,14 +48,14 @@ fn load_base_tables(
                 println!("reading file: {}", path.display());
 
                 let schema = infer_schema_from_files(
-                    &[data.csv_file_path.clone()],
+                    &[data.csv_file_path.to_string()],
                     data.delimiter,
                     data.max_read_records,
                     data.has_header,
                 );
                 if schema.is_err() {
                     return Err(TldrError::TldrCouldNotReadSchema(
-                        data.csv_file_path.clone(),
+                        data.csv_file_path.to_string(),
                     ));
                 }
                 let schema = schema.unwrap();
@@ -87,7 +87,7 @@ fn load_base_tables(
                                 DataTypeDescriptor::Boolean(_) => DataType::Boolean,
                                 DataTypeDescriptor::Null => DataType::Null,
                             };
-                            Field::new(k, dtype, v.is_nullable())
+                            Field::new(k.to_string(), dtype, v.is_nullable())
                         })
                         .collect::<Vec<_>>(),
                 );
@@ -95,7 +95,7 @@ fn load_base_tables(
                 let schema = Schema::try_merge([schema, mod_schema]);
                 if schema.is_err() {
                     return Err(TldrError::TldrCouldNotMergeSchemas(
-                        data.csv_file_path.clone(),
+                        data.csv_file_path.to_string(),
                     ));
                 }
 
@@ -106,20 +106,24 @@ fn load_base_tables(
                 let mut batches = Vec::new();
                 for batch in csv_reader {
                     if batch.is_err() {
-                        return Err(TldrError::TldrCouldNotReadFile(data.csv_file_path.clone()));
+                        return Err(TldrError::TldrCouldNotReadFile(
+                            data.csv_file_path.to_string(),
+                        ));
                     }
                     let batch = batch.unwrap();
                     batches.push(batch);
                 }
                 let m = MemTable::try_new(schema, vec![batches]).map_err(|_| {
-                    TldrError::TldrCouldNotCreateMemTable(data.csv_file_path.clone())
+                    TldrError::TldrCouldNotCreateMemTable(data.csv_file_path.to_string())
                 })?;
 
                 ret.register_table(
                     TableReference::bare(path.file_stem().unwrap().to_str().unwrap()),
                     Arc::new(m),
                 )
-                .map_err(|_| TldrError::TldrCouldNotRegisterTable(data.csv_file_path.clone()))?;
+                .map_err(|_| {
+                    TldrError::TldrCouldNotRegisterTable(data.csv_file_path.to_string())
+                })?;
 
                 // TODO: Cast Date and Time types into the proper type
             }
@@ -169,208 +173,180 @@ fn generate_context_test() {
     use std::collections::HashMap;
 
     let mut online_sales_field_types = HashMap::new();
-    online_sales_field_types.insert(
-        "SalesOrderNumber".to_string(),
-        DataTypeDescriptor::String(false),
-    );
+    online_sales_field_types.insert("SalesOrderNumber", DataTypeDescriptor::String(false));
 
     let ast = Ast {
         file_descriptors: vec![
             FileDescriptorData::CSV(CSVData {
-                csv_file_path: "contoso/DimAccount.csv".to_string(),
-                separator: None,
+                csv_file_path: "contoso/DimAccount.csv",
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
                 max_read_records: Some(100),
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                csv_file_path: "contoso/DimChannel.csv".to_string(),
-                separator: None,
+                csv_file_path: "contoso/DimChannel.csv",
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
                 max_read_records: Some(100),
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                csv_file_path: "contoso/DimCurrency.csv".to_string(),
-                separator: None,
+                csv_file_path: "contoso/DimCurrency.csv",
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
                 max_read_records: Some(100),
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                csv_file_path: "contoso/DimCustomer.csv".to_string(),
-                separator: None,
+                csv_file_path: "contoso/DimCustomer.csv",
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
                 max_read_records: Some(100),
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                csv_file_path: "contoso/DimDate.csv".to_string(),
-                separator: None,
+                csv_file_path: "contoso/DimDate.csv",
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
                 max_read_records: Some(100),
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                csv_file_path: "contoso/DimEmployee.csv".to_string(),
-                separator: None,
+                csv_file_path: "contoso/DimEmployee.csv",
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
                 max_read_records: Some(100),
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                csv_file_path: "contoso/DimEntity.csv".to_string(),
-                separator: None,
+                csv_file_path: "contoso/DimEntity.csv",
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
                 max_read_records: Some(100),
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                csv_file_path: "contoso/DimGeography.csv".to_string(),
-                separator: None,
+                csv_file_path: "contoso/DimGeography.csv",
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
                 max_read_records: Some(100),
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                csv_file_path: "contoso/DimMachine.csv".to_string(),
-                separator: None,
+                csv_file_path: "contoso/DimMachine.csv",
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
                 max_read_records: Some(100),
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                csv_file_path: "contoso/DimOutage.csv".to_string(),
-                separator: None,
+                csv_file_path: "contoso/DimOutage.csv",
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
                 max_read_records: Some(100),
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                csv_file_path: "contoso/DimProduct.csv".to_string(),
-                separator: None,
+                csv_file_path: "contoso/DimProduct.csv",
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
                 max_read_records: Some(100),
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                csv_file_path: "contoso/DimProductCategory.csv".to_string(),
-                separator: None,
+                csv_file_path: "contoso/DimProductCategory.csv",
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
                 max_read_records: Some(100),
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                csv_file_path: "contoso/DimProductSubcategory.csv".to_string(),
-                separator: None,
+                csv_file_path: "contoso/DimProductSubcategory.csv",
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
                 max_read_records: Some(100),
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                csv_file_path: "contoso/DimPromotion.csv".to_string(),
-                separator: None,
+                csv_file_path: "contoso/DimPromotion.csv",
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
                 max_read_records: Some(100),
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                csv_file_path: "contoso/DimSalesTerritory.csv".to_string(),
-                separator: None,
+                csv_file_path: "contoso/DimSalesTerritory.csv",
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
                 max_read_records: Some(100),
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                csv_file_path: "contoso/DimScenario.csv".to_string(),
-                separator: None,
+                csv_file_path: "contoso/DimScenario.csv",
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
                 max_read_records: Some(100),
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                csv_file_path: "contoso/DimStore.csv".to_string(),
-                separator: None,
+                csv_file_path: "contoso/DimStore.csv",
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
                 max_read_records: Some(100),
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                csv_file_path: "contoso/FactExchangeRate.csv".to_string(),
-                separator: None,
+                csv_file_path: "contoso/FactExchangeRate.csv",
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
                 max_read_records: Some(100),
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                csv_file_path: "contoso/FactInventory.csv".to_string(),
-                separator: None,
+                csv_file_path: "contoso/FactInventory.csv",
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
                 max_read_records: Some(100),
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                csv_file_path: "contoso/FactITMachine.csv".to_string(),
-                separator: None,
+                csv_file_path: "contoso/FactITMachine.csv",
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
                 max_read_records: Some(100),
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                csv_file_path: "contoso/FactITSLA.csv".to_string(),
-                separator: None,
+                csv_file_path: "contoso/FactITSLA.csv",
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
                 max_read_records: Some(100),
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                csv_file_path: "contoso/FactOnlineSales.csv".to_string(),
-                separator: None,
+                csv_file_path: "contoso/FactOnlineSales.csv",
                 field_types: online_sales_field_types,
                 delimiter: (";".as_bytes())[0],
                 max_read_records: Some(100),
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                csv_file_path: "contoso/FactSales.csv".to_string(),
-                separator: None,
+                csv_file_path: "contoso/FactSales.csv",
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
                 max_read_records: Some(100),
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                csv_file_path: "contoso/FactSalesQuota.csv".to_string(),
-                separator: None,
+                csv_file_path: "contoso/FactSalesQuota.csv",
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
                 max_read_records: Some(100),
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                csv_file_path: "contoso/FactStrategyPlan.csv".to_string(),
-                separator: None,
+                csv_file_path: "contoso/FactStrategyPlan.csv",
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
                 max_read_records: Some(100),
@@ -398,18 +374,17 @@ fn datetime_format_test() {
 
     let mut dim_date_field_types = HashMap::new();
     dim_date_field_types.insert(
-        "OutageStartTime".to_string(),
+        "OutageStartTime",
         DataTypeDescriptor::Datetime(false, "%Y-%m-%d %H:%M:%S", TimeUnit::Nanosecond, None),
     );
     dim_date_field_types.insert(
-        "OutageEndTime".to_string(),
+        "OutageEndTime",
         DataTypeDescriptor::Datetime(false, "%Y-%m-%d %H:%M:%S", TimeUnit::Nanosecond, None),
     );
 
     let expected_ast = Ast {
         file_descriptors: vec![FileDescriptorData::CSV(CSVData {
-            csv_file_path: "contoso/FactITSLA.csv".to_string(),
-            separator: None,
+            csv_file_path: "contoso/FactITSLA.csv",
             field_types: dim_date_field_types,
             delimiter: (";".as_bytes())[0],
             max_read_records: Some(100),
@@ -437,15 +412,11 @@ fn date_format_test() {
     assert!(parse_result.is_ok());
 
     let mut dim_date_field_types = HashMap::new();
-    dim_date_field_types.insert(
-        "DateKey".to_string(),
-        DataTypeDescriptor::Date(false, "%Y-%m-%d"),
-    );
+    dim_date_field_types.insert("DateKey", DataTypeDescriptor::Date(false, "%Y-%m-%d"));
 
     let expected_ast = Ast {
         file_descriptors: vec![FileDescriptorData::CSV(CSVData {
-            csv_file_path: "contoso/DimDate.csv".to_string(),
-            separator: None,
+            csv_file_path: "contoso/DimDate.csv",
             field_types: dim_date_field_types,
             delimiter: (";".as_bytes())[0],
             max_read_records: Some(100),
@@ -497,214 +468,183 @@ fn parse_to_context_test() {
     assert!(parse_result.is_ok());
 
     let mut online_sales_field_types = HashMap::new();
-    online_sales_field_types.insert(
-        "SalesOrderNumber".to_string(),
-        DataTypeDescriptor::String(false),
-    );
+    online_sales_field_types.insert("SalesOrderNumber", DataTypeDescriptor::String(false));
 
     let mut dim_date_field_types = HashMap::new();
-    dim_date_field_types.insert(
-        "DateKey".to_string(),
-        DataTypeDescriptor::Date(false, "%Y-%m-%d"),
-    );
+    dim_date_field_types.insert("DateKey", DataTypeDescriptor::Date(false, "%Y-%m-%d"));
 
     let expected_ast = Ast {
         file_descriptors: vec![
             FileDescriptorData::CSV(CSVData {
-                csv_file_path: "contoso/DimAccount.csv".to_string(),
-                separator: None,
+                csv_file_path: "contoso/DimAccount.csv",
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
                 max_read_records: Some(100),
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                csv_file_path: "contoso/DimChannel.csv".to_string(),
-                separator: None,
+                csv_file_path: "contoso/DimChannel.csv",
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
                 max_read_records: Some(100),
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                csv_file_path: "contoso/DimCurrency.csv".to_string(),
-                separator: None,
+                csv_file_path: "contoso/DimCurrency.csv",
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
                 max_read_records: Some(100),
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                csv_file_path: "contoso/DimCustomer.csv".to_string(),
-                separator: None,
+                csv_file_path: "contoso/DimCustomer.csv",
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
                 max_read_records: Some(100),
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                csv_file_path: "contoso/DimDate.csv".to_string(),
-                separator: None,
+                csv_file_path: "contoso/DimDate.csv",
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
                 max_read_records: Some(100),
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                csv_file_path: "contoso/DimEmployee.csv".to_string(),
-                separator: None,
+                csv_file_path: "contoso/DimEmployee.csv",
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
                 max_read_records: Some(100),
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                csv_file_path: "contoso/DimEntity.csv".to_string(),
-                separator: None,
+                csv_file_path: "contoso/DimEntity.csv",
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
                 max_read_records: Some(100),
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                csv_file_path: "contoso/DimGeography.csv".to_string(),
-                separator: None,
+                csv_file_path: "contoso/DimGeography.csv",
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
                 max_read_records: Some(100),
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                csv_file_path: "contoso/DimMachine.csv".to_string(),
-                separator: None,
+                csv_file_path: "contoso/DimMachine.csv",
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
                 max_read_records: Some(100),
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                csv_file_path: "contoso/DimOutage.csv".to_string(),
-                separator: None,
+                csv_file_path: "contoso/DimOutage.csv",
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
                 max_read_records: Some(100),
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                csv_file_path: "contoso/DimProduct.csv".to_string(),
-                separator: None,
+                csv_file_path: "contoso/DimProduct.csv",
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
                 max_read_records: Some(100),
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                csv_file_path: "contoso/DimProductCategory.csv".to_string(),
-                separator: None,
+                csv_file_path: "contoso/DimProductCategory.csv",
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
                 max_read_records: Some(100),
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                csv_file_path: "contoso/DimProductSubcategory.csv".to_string(),
-                separator: None,
+                csv_file_path: "contoso/DimProductSubcategory.csv",
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
                 max_read_records: Some(100),
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                csv_file_path: "contoso/DimPromotion.csv".to_string(),
-                separator: None,
+                csv_file_path: "contoso/DimPromotion.csv",
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
                 max_read_records: Some(100),
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                csv_file_path: "contoso/DimSalesTerritory.csv".to_string(),
-                separator: None,
+                csv_file_path: "contoso/DimSalesTerritory.csv",
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
                 max_read_records: Some(100),
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                csv_file_path: "contoso/DimScenario.csv".to_string(),
-                separator: None,
+                csv_file_path: "contoso/DimScenario.csv",
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
                 max_read_records: Some(100),
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                csv_file_path: "contoso/DimStore.csv".to_string(),
-                separator: None,
+                csv_file_path: "contoso/DimStore.csv",
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
                 max_read_records: Some(100),
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                csv_file_path: "contoso/FactExchangeRate.csv".to_string(),
-                separator: None,
+                csv_file_path: "contoso/FactExchangeRate.csv",
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
                 max_read_records: Some(100),
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                csv_file_path: "contoso/FactInventory.csv".to_string(),
-                separator: None,
+                csv_file_path: "contoso/FactInventory.csv",
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
                 max_read_records: Some(100),
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                csv_file_path: "contoso/FactITMachine.csv".to_string(),
-                separator: None,
+                csv_file_path: "contoso/FactITMachine.csv",
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
                 max_read_records: Some(100),
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                csv_file_path: "contoso/FactITSLA.csv".to_string(),
-                separator: None,
+                csv_file_path: "contoso/FactITSLA.csv",
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
                 max_read_records: Some(100),
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                csv_file_path: "contoso/FactOnlineSales.csv".to_string(),
-                separator: None,
+                csv_file_path: "contoso/FactOnlineSales.csv",
                 field_types: online_sales_field_types,
                 delimiter: (";".as_bytes())[0],
                 max_read_records: Some(100),
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                csv_file_path: "contoso/FactSales.csv".to_string(),
-                separator: None,
+                csv_file_path: "contoso/FactSales.csv",
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
                 max_read_records: Some(100),
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                csv_file_path: "contoso/FactSalesQuota.csv".to_string(),
-                separator: None,
+                csv_file_path: "contoso/FactSalesQuota.csv",
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
                 max_read_records: Some(100),
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                csv_file_path: "contoso/FactStrategyPlan.csv".to_string(),
-                separator: None,
+                csv_file_path: "contoso/FactStrategyPlan.csv",
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
                 max_read_records: Some(100),

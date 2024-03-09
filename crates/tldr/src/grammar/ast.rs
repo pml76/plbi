@@ -73,12 +73,11 @@ pub struct Ast<'a> {
 }
 
 impl<'a> CSVData<'a> {
-    pub fn new(filename: String, separator: Option<String>) -> CSVData<'a> {
+    pub fn new(filename: &'a str) -> CSVData<'a> {
         CSVData {
             csv_file_path: filename,
-            separator,
             field_types: HashMap::new(),
-            delimiter: (";".as_bytes())[0],
+            delimiter: b';',
             max_read_records: Some(100),
             has_header: true,
         }
