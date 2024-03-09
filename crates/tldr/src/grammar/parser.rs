@@ -47,7 +47,7 @@ use arrow::datatypes::TimeUnit;
 use std::collections::HashMap;
 
 use nom::{
-    branch::alt, bytes::complete::{tag, take_until}, character::{complete::{u32, char, multispace0}, streaming::anychar}, combinator::{map, opt}, error::ParseError, multi::{many1, separated_list1}, number::complete::u32, sequence::{delimited, pair, preceded, separated_pair, tuple}, IResult, Parser
+    branch::{alt, permutation}, bytes::complete::{tag, take_until}, character::{complete::{char, multispace0, u32}, streaming::anychar}, combinator::{map, opt}, error::ParseError, multi::{many1, separated_list1}, number::complete::u32, sequence::{delimited, pair, preceded, separated_pair, tuple}, IResult, Parser
 };
 
 use super::ast::{Ast, CSVData, DataTypeDescriptor, FileDescriptorData};
@@ -80,13 +80,6 @@ pub fn ast_parser(input: &str) -> IResult<&str, Ast> {
 }
 
 
-enum FileDescriptorEntryType<'a> {
-    FileName(&'a str),
-    Delimiter(u8),
-    HasHeader(bool),
-    MaxNumRecords(Option<usize>),
-    FieldTypes(Vec<DataTypeDescriptor<'a>>),
-}
 
 /// Here, we parse the entries of the file-descriptor block
 /// 
@@ -100,54 +93,82 @@ fn file_descriptor_parser(input: &str) -> IResult<&str, FileDescriptorData> {
     
     let csv_file_name_block = map(
         tuple((ws(tag("csv_file_name")), ws(tag(":")), ws(string_parser))),
-        |(_,_,s)| FileDescriptorEntryType::FileName(s)
+        |(_,_,s)| s
     );
 
     let delimiter_block = map(
         tuple((ws(tag("delimiter")), ws(tag(":")), ws(char_parser))),
-        |(_,_,c)| FileDescriptorEntryType::Delimiter(c)
+        |(_,_,c)| c
     );
     
     let has_header_block = map(
         tuple((ws(tag("has_header")), ws(tag(":")), ws(bool_parser))),
-        |(_,_,b)| FileDescriptorEntryType::HasHeader(b)
+        |(_,_,b)| b
     );
 
     let max_read_records_block = map (
         tuple((ws(tag("max_read_records")), ws(tag(":")), ws(opt(usize_parser)))),
-        |(_,_,n)| FileDescriptorEntryType::MaxNumRecords(n)
+        |(_,_,n)| n
     );
 
     let field_types_block = map(
         tuple((ws(tag("field_types")), ws(tag(":")), ws(schema_parser))),
-        |(_,_,s)| FileDescriptorEntryType::FieldTypes(s)
+        |(_,_,s)| s
     );
 
-    let csv_head = tuple((
-        ws(tag("(")),
-        ws(tag("csv_file_name")),
-        ws(tag(":")),
+    let any_of_that = permutation((
+        csv_file_name_block, 
+        ws(opt(field_types_block)),
+        ws(opt(delimiter_block)), 
+        ws(opt(has_header_block)), 
+        ws(opt(max_read_records_block)), 
     ));
-    let csv_tail = ws(tag(")"));
-    let csv_contents = pair(ws(string_parser), preceded(ws(tag(",")), ws(schema_parser)));
 
-    let csv_parser = delimited(csv_head, csv_contents, csv_tail);
+    let mut csv_file_path: &str = "";
+    let mut field_types: HashMap<&str, DataTypeDescriptor<'_>> = HashMap::new();
+    let mut delimiter: u8 = b',';
+    let mut has_headers = true;
+    let mut max_read_records = Some(100);
 
-    let mut csv_map = map(csv_parser, |(f, g)| {
-        FileDescriptorData::CSV(CSVData {
-            filename: f.to_string(),
-            separator: None,
-            field_types: g,
-            delimiter: (";".as_bytes())[0],
-            max_read_records: Some(100),
-            has_header: true,
-        })
-    });
+    map(any_of_that, 
+        |(csv_file_path, field_types, delimiter, has_header, max_read_records)| {
+            CSVData{
+                csv_file_path,
+                field_types: { 
+                    if let Some(f) = field_types { 
+                        f 
+                    } else {
+                        HashMap::new()
+                    } 
+                },
+                delimiter: {
+                    if let Some(d) = delimiter {
+                        d
+                    } else {
+                        b','
+                    }
+                },
+                max_read_records: {
+                    if let Some(r)= max_read_records {
+                        r
+                    } else {
+                        Some(100)
+                    }
+                },
+                has_header: {
+                    if let Some(b) = has_header {
+                        b
+                    } else {
+                        true
+                    }
+                },
+            }
+        })(input)
 
-    csv_map(input)
+
 }
 
-fn schema_parser(input: &str) -> IResult<&str, HashMap<String, DataTypeDescriptor>> {
+fn schema_parser<'a>(input: &str) -> IResult<&str, HashMap<&'a str, DataTypeDescriptor>> {
     let head = tuple((ws(tag("field_types")), ws(tag("{"))));
     let tail = ws(tag("}"));
     let parser = many1(schema_entry_parser);
@@ -325,7 +346,7 @@ fn ast_parser_test() {
             Ast {
                 file_descriptors: vec![FileDescriptorData::CSV(
                     CSVData {
-                        filename:"dir/fn.csv".to_string(),
+                        csv_file_path:"dir/fn.csv".to_string(),
                         separator:None,
                         field_types:expected_schema, 
                         delimiter: (";".as_bytes())[0], 
@@ -349,7 +370,7 @@ fn file_descriptor_parser_test() {
         Ok((
             "",
             FileDescriptorData::CSV(CSVData {
-                filename:"dir/fn.csv".to_string(),
+                csv_file_path:"dir/fn.csv".to_string(),
                 separator:None,
                 field_types:expected_schema, 
                 delimiter: (";".as_bytes())[0], 

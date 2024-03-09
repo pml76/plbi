@@ -55,9 +55,8 @@ impl<'a> DataTypeDescriptor<'a> {
 
 #[derive(PartialEq, Debug)]
 pub struct CSVData<'a> {
-    pub filename: String,
-    pub separator: Option<String>,
-    pub field_types: HashMap<String, DataTypeDescriptor<'a>>,
+    pub csv_file_path: &'a str,
+    pub field_types: HashMap<&'a str, DataTypeDescriptor<'a>>,
     pub delimiter: u8,
     pub max_read_records: Option<usize>,
     pub has_header: bool,
@@ -76,7 +75,7 @@ pub struct Ast<'a> {
 impl<'a> CSVData<'a> {
     pub fn new(filename: String, separator: Option<String>) -> CSVData<'a> {
         CSVData {
-            filename,
+            csv_file_path: filename,
             separator,
             field_types: HashMap::new(),
             delimiter: (";".as_bytes())[0],

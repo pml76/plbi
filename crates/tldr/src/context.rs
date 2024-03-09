@@ -37,7 +37,7 @@ fn load_base_tables(
 
     for filename in loadable_filenames {
         if let FileDescriptorData::CSV(data) = filename {
-            let path = Path::new(&data.filename);
+            let path = Path::new(&data.csv_file_path);
             if !path.exists() {
                 let s = format!("{}", path.display());
                 return Err(TldrError::TldrFileNotfound(s));
@@ -48,13 +48,15 @@ fn load_base_tables(
                 println!("reading file: {}", path.display());
 
                 let schema = infer_schema_from_files(
-                    &[data.filename.clone()],
+                    &[data.csv_file_path.clone()],
                     data.delimiter,
                     data.max_read_records,
                     data.has_header,
                 );
                 if schema.is_err() {
-                    return Err(TldrError::TldrCouldNotReadSchema(data.filename.clone()));
+                    return Err(TldrError::TldrCouldNotReadSchema(
+                        data.csv_file_path.clone(),
+                    ));
                 }
                 let schema = schema.unwrap();
 
@@ -92,7 +94,9 @@ fn load_base_tables(
 
                 let schema = Schema::try_merge([schema, mod_schema]);
                 if schema.is_err() {
-                    return Err(TldrError::TldrCouldNotMergeSchemas(data.filename.clone()));
+                    return Err(TldrError::TldrCouldNotMergeSchemas(
+                        data.csv_file_path.clone(),
+                    ));
                 }
 
                 let schema = Arc::new(schema.unwrap());
@@ -102,19 +106,20 @@ fn load_base_tables(
                 let mut batches = Vec::new();
                 for batch in csv_reader {
                     if batch.is_err() {
-                        return Err(TldrError::TldrCouldNotReadFile(data.filename.clone()));
+                        return Err(TldrError::TldrCouldNotReadFile(data.csv_file_path.clone()));
                     }
                     let batch = batch.unwrap();
                     batches.push(batch);
                 }
-                let m = MemTable::try_new(schema, vec![batches])
-                    .map_err(|_| TldrError::TldrCouldNotCreateMemTable(data.filename.clone()))?;
+                let m = MemTable::try_new(schema, vec![batches]).map_err(|_| {
+                    TldrError::TldrCouldNotCreateMemTable(data.csv_file_path.clone())
+                })?;
 
                 ret.register_table(
                     TableReference::bare(path.file_stem().unwrap().to_str().unwrap()),
                     Arc::new(m),
                 )
-                .map_err(|_| TldrError::TldrCouldNotRegisterTable(data.filename.clone()))?;
+                .map_err(|_| TldrError::TldrCouldNotRegisterTable(data.csv_file_path.clone()))?;
 
                 // TODO: Cast Date and Time types into the proper type
             }
@@ -172,7 +177,7 @@ fn generate_context_test() {
     let ast = Ast {
         file_descriptors: vec![
             FileDescriptorData::CSV(CSVData {
-                filename: "contoso/DimAccount.csv".to_string(),
+                csv_file_path: "contoso/DimAccount.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
@@ -180,7 +185,7 @@ fn generate_context_test() {
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                filename: "contoso/DimChannel.csv".to_string(),
+                csv_file_path: "contoso/DimChannel.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
@@ -188,7 +193,7 @@ fn generate_context_test() {
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                filename: "contoso/DimCurrency.csv".to_string(),
+                csv_file_path: "contoso/DimCurrency.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
@@ -196,7 +201,7 @@ fn generate_context_test() {
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                filename: "contoso/DimCustomer.csv".to_string(),
+                csv_file_path: "contoso/DimCustomer.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
@@ -204,7 +209,7 @@ fn generate_context_test() {
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                filename: "contoso/DimDate.csv".to_string(),
+                csv_file_path: "contoso/DimDate.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
@@ -212,7 +217,7 @@ fn generate_context_test() {
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                filename: "contoso/DimEmployee.csv".to_string(),
+                csv_file_path: "contoso/DimEmployee.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
@@ -220,7 +225,7 @@ fn generate_context_test() {
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                filename: "contoso/DimEntity.csv".to_string(),
+                csv_file_path: "contoso/DimEntity.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
@@ -228,7 +233,7 @@ fn generate_context_test() {
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                filename: "contoso/DimGeography.csv".to_string(),
+                csv_file_path: "contoso/DimGeography.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
@@ -236,7 +241,7 @@ fn generate_context_test() {
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                filename: "contoso/DimMachine.csv".to_string(),
+                csv_file_path: "contoso/DimMachine.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
@@ -244,7 +249,7 @@ fn generate_context_test() {
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                filename: "contoso/DimOutage.csv".to_string(),
+                csv_file_path: "contoso/DimOutage.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
@@ -252,7 +257,7 @@ fn generate_context_test() {
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                filename: "contoso/DimProduct.csv".to_string(),
+                csv_file_path: "contoso/DimProduct.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
@@ -260,7 +265,7 @@ fn generate_context_test() {
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                filename: "contoso/DimProductCategory.csv".to_string(),
+                csv_file_path: "contoso/DimProductCategory.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
@@ -268,7 +273,7 @@ fn generate_context_test() {
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                filename: "contoso/DimProductSubcategory.csv".to_string(),
+                csv_file_path: "contoso/DimProductSubcategory.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
@@ -276,7 +281,7 @@ fn generate_context_test() {
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                filename: "contoso/DimPromotion.csv".to_string(),
+                csv_file_path: "contoso/DimPromotion.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
@@ -284,7 +289,7 @@ fn generate_context_test() {
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                filename: "contoso/DimSalesTerritory.csv".to_string(),
+                csv_file_path: "contoso/DimSalesTerritory.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
@@ -292,7 +297,7 @@ fn generate_context_test() {
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                filename: "contoso/DimScenario.csv".to_string(),
+                csv_file_path: "contoso/DimScenario.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
@@ -300,7 +305,7 @@ fn generate_context_test() {
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                filename: "contoso/DimStore.csv".to_string(),
+                csv_file_path: "contoso/DimStore.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
@@ -308,7 +313,7 @@ fn generate_context_test() {
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                filename: "contoso/FactExchangeRate.csv".to_string(),
+                csv_file_path: "contoso/FactExchangeRate.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
@@ -316,7 +321,7 @@ fn generate_context_test() {
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                filename: "contoso/FactInventory.csv".to_string(),
+                csv_file_path: "contoso/FactInventory.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
@@ -324,7 +329,7 @@ fn generate_context_test() {
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                filename: "contoso/FactITMachine.csv".to_string(),
+                csv_file_path: "contoso/FactITMachine.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
@@ -332,7 +337,7 @@ fn generate_context_test() {
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                filename: "contoso/FactITSLA.csv".to_string(),
+                csv_file_path: "contoso/FactITSLA.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
@@ -340,7 +345,7 @@ fn generate_context_test() {
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                filename: "contoso/FactOnlineSales.csv".to_string(),
+                csv_file_path: "contoso/FactOnlineSales.csv".to_string(),
                 separator: None,
                 field_types: online_sales_field_types,
                 delimiter: (";".as_bytes())[0],
@@ -348,7 +353,7 @@ fn generate_context_test() {
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                filename: "contoso/FactSales.csv".to_string(),
+                csv_file_path: "contoso/FactSales.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
@@ -356,7 +361,7 @@ fn generate_context_test() {
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                filename: "contoso/FactSalesQuota.csv".to_string(),
+                csv_file_path: "contoso/FactSalesQuota.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
@@ -364,7 +369,7 @@ fn generate_context_test() {
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                filename: "contoso/FactStrategyPlan.csv".to_string(),
+                csv_file_path: "contoso/FactStrategyPlan.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
@@ -403,7 +408,7 @@ fn datetime_format_test() {
 
     let expected_ast = Ast {
         file_descriptors: vec![FileDescriptorData::CSV(CSVData {
-            filename: "contoso/FactITSLA.csv".to_string(),
+            csv_file_path: "contoso/FactITSLA.csv".to_string(),
             separator: None,
             field_types: dim_date_field_types,
             delimiter: (";".as_bytes())[0],
@@ -439,7 +444,7 @@ fn date_format_test() {
 
     let expected_ast = Ast {
         file_descriptors: vec![FileDescriptorData::CSV(CSVData {
-            filename: "contoso/DimDate.csv".to_string(),
+            csv_file_path: "contoso/DimDate.csv".to_string(),
             separator: None,
             field_types: dim_date_field_types,
             delimiter: (";".as_bytes())[0],
@@ -506,7 +511,7 @@ fn parse_to_context_test() {
     let expected_ast = Ast {
         file_descriptors: vec![
             FileDescriptorData::CSV(CSVData {
-                filename: "contoso/DimAccount.csv".to_string(),
+                csv_file_path: "contoso/DimAccount.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
@@ -514,7 +519,7 @@ fn parse_to_context_test() {
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                filename: "contoso/DimChannel.csv".to_string(),
+                csv_file_path: "contoso/DimChannel.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
@@ -522,7 +527,7 @@ fn parse_to_context_test() {
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                filename: "contoso/DimCurrency.csv".to_string(),
+                csv_file_path: "contoso/DimCurrency.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
@@ -530,7 +535,7 @@ fn parse_to_context_test() {
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                filename: "contoso/DimCustomer.csv".to_string(),
+                csv_file_path: "contoso/DimCustomer.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
@@ -538,7 +543,7 @@ fn parse_to_context_test() {
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                filename: "contoso/DimDate.csv".to_string(),
+                csv_file_path: "contoso/DimDate.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
@@ -546,7 +551,7 @@ fn parse_to_context_test() {
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                filename: "contoso/DimEmployee.csv".to_string(),
+                csv_file_path: "contoso/DimEmployee.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
@@ -554,7 +559,7 @@ fn parse_to_context_test() {
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                filename: "contoso/DimEntity.csv".to_string(),
+                csv_file_path: "contoso/DimEntity.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
@@ -562,7 +567,7 @@ fn parse_to_context_test() {
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                filename: "contoso/DimGeography.csv".to_string(),
+                csv_file_path: "contoso/DimGeography.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
@@ -570,7 +575,7 @@ fn parse_to_context_test() {
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                filename: "contoso/DimMachine.csv".to_string(),
+                csv_file_path: "contoso/DimMachine.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
@@ -578,7 +583,7 @@ fn parse_to_context_test() {
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                filename: "contoso/DimOutage.csv".to_string(),
+                csv_file_path: "contoso/DimOutage.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
@@ -586,7 +591,7 @@ fn parse_to_context_test() {
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                filename: "contoso/DimProduct.csv".to_string(),
+                csv_file_path: "contoso/DimProduct.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
@@ -594,7 +599,7 @@ fn parse_to_context_test() {
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                filename: "contoso/DimProductCategory.csv".to_string(),
+                csv_file_path: "contoso/DimProductCategory.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
@@ -602,7 +607,7 @@ fn parse_to_context_test() {
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                filename: "contoso/DimProductSubcategory.csv".to_string(),
+                csv_file_path: "contoso/DimProductSubcategory.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
@@ -610,7 +615,7 @@ fn parse_to_context_test() {
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                filename: "contoso/DimPromotion.csv".to_string(),
+                csv_file_path: "contoso/DimPromotion.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
@@ -618,7 +623,7 @@ fn parse_to_context_test() {
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                filename: "contoso/DimSalesTerritory.csv".to_string(),
+                csv_file_path: "contoso/DimSalesTerritory.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
@@ -626,7 +631,7 @@ fn parse_to_context_test() {
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                filename: "contoso/DimScenario.csv".to_string(),
+                csv_file_path: "contoso/DimScenario.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
@@ -634,7 +639,7 @@ fn parse_to_context_test() {
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                filename: "contoso/DimStore.csv".to_string(),
+                csv_file_path: "contoso/DimStore.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
@@ -642,7 +647,7 @@ fn parse_to_context_test() {
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                filename: "contoso/FactExchangeRate.csv".to_string(),
+                csv_file_path: "contoso/FactExchangeRate.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
@@ -650,7 +655,7 @@ fn parse_to_context_test() {
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                filename: "contoso/FactInventory.csv".to_string(),
+                csv_file_path: "contoso/FactInventory.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
@@ -658,7 +663,7 @@ fn parse_to_context_test() {
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                filename: "contoso/FactITMachine.csv".to_string(),
+                csv_file_path: "contoso/FactITMachine.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
@@ -666,7 +671,7 @@ fn parse_to_context_test() {
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                filename: "contoso/FactITSLA.csv".to_string(),
+                csv_file_path: "contoso/FactITSLA.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
@@ -674,7 +679,7 @@ fn parse_to_context_test() {
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                filename: "contoso/FactOnlineSales.csv".to_string(),
+                csv_file_path: "contoso/FactOnlineSales.csv".to_string(),
                 separator: None,
                 field_types: online_sales_field_types,
                 delimiter: (";".as_bytes())[0],
@@ -682,7 +687,7 @@ fn parse_to_context_test() {
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                filename: "contoso/FactSales.csv".to_string(),
+                csv_file_path: "contoso/FactSales.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
@@ -690,7 +695,7 @@ fn parse_to_context_test() {
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                filename: "contoso/FactSalesQuota.csv".to_string(),
+                csv_file_path: "contoso/FactSalesQuota.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
@@ -698,7 +703,7 @@ fn parse_to_context_test() {
                 has_header: true,
             }),
             FileDescriptorData::CSV(CSVData {
-                filename: "contoso/FactStrategyPlan.csv".to_string(),
+                csv_file_path: "contoso/FactStrategyPlan.csv".to_string(),
                 separator: None,
                 field_types: HashMap::new(),
                 delimiter: (";".as_bytes())[0],
