@@ -25,7 +25,7 @@ pub enum DataTypeDescriptor<'a> {
     Date(bool, &'a str),
     /// parameter of Date() is format string according to
     /// https://docs.rs/chrono/latest/chrono/format/strftime/index.html
-    Datetime(bool, &'a str, TimeUnit, Option<String>),
+    Datetime(bool, &'a str),
 }
 
 impl<'a> DataTypeDescriptor<'a> {
@@ -47,7 +47,7 @@ impl<'a> DataTypeDescriptor<'a> {
             DataTypeDescriptor::Duration(b, _) => *b,
             DataTypeDescriptor::Time(b, _) => *b,
             DataTypeDescriptor::Date(b, _) => *b,
-            DataTypeDescriptor::Datetime(b, _, _, _) => *b,
+            DataTypeDescriptor::Datetime(b, _) => *b,
             DataTypeDescriptor::Null => true,
         }
     }

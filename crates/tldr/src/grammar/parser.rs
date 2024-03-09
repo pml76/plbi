@@ -43,16 +43,16 @@
 ///     >>> the first parameter indicates whether the field is nullable or not
 /// 
 
-use arrow::{compute::is_null, datatypes::TimeUnit};
+use arrow::datatypes::TimeUnit;
 use std::collections::HashMap;
 
 use nom::{
-    branch::{alt, permutation}, 
+    branch::alt, 
     bytes::complete::{tag, take_until}, 
     character::{ complete::{char, multispace0, u32}, 
                  streaming::anychar}, 
                  combinator::{map, opt}, 
-                 error::ParseError, multi::{many1, separated_list1}, 
+                 error::ParseError, multi::{many0, separated_list1}, 
                  sequence::{delimited, separated_pair, tuple}, 
     IResult, Parser
 };
@@ -97,89 +97,112 @@ pub fn ast_parser(input: &str) -> IResult<&str, Ast> {
 ///                         | "field_types" ":" "(" field_type_descriptor ["," field_type_descriptor]* ","? ")"
 /// 
 fn file_descriptor_parser(input: &str) -> IResult<&str, FileDescriptorData> {
+
+    enum IntermediateResult<'a> {
+        CSVFileName(&'a str),
+        Delimiter(u8),
+        HasHeader(bool),
+        MaxReadRecords(Option<usize>),
+        FieldTypes(HashMap<&'a str, DataTypeDescriptor<'a>>),
+    }
     
     let csv_file_name_block = map(
-        tuple((ws(tag("csv_file_name")), ws(tag(":")), ws(string_parser))),
-        |(_,_,s)| s
+        tuple((
+            ws(tag("csv_file_name")), 
+            ws(tag(":")), 
+            ws(string_parser),
+            opt(ws(tag(","))),
+        )),
+        |(_,_,s,_)| IntermediateResult::CSVFileName(s)
     );
 
     let delimiter_block = map(
-        tuple((ws(tag("delimiter")), ws(tag(":")), ws(char_parser))),
-        |(_,_,c)| c
+        tuple((
+            ws(tag("delimiter")), 
+            ws(tag(":")), 
+            ws(char_parser),
+            opt(ws(tag(","))),
+
+        )),
+        |(_,_,c,_)| IntermediateResult::Delimiter(c)
     );
     
     let has_header_block = map(
-        tuple((ws(tag("has_header")), ws(tag(":")), ws(bool_parser))),
-        |(_,_,b)| b
+        tuple((
+            ws(tag("has_header")), 
+            ws(tag(":")), 
+            ws(bool_parser),
+            opt(ws(tag(","))),
+        )),
+        |(_,_,b,_)| IntermediateResult::HasHeader(b)
     );
 
     let max_read_records_block = map (
-        tuple((ws(tag("max_read_records")), ws(tag(":")), ws(opt(usize_parser)))),
-        |(_,_,n)| n
+        tuple((
+            ws(tag("max_read_records")), 
+            ws(tag(":")), 
+            ws(opt(usize_parser)),
+            opt(ws(tag(","))),
+        )),
+        |(_,_,n,_)| IntermediateResult::MaxReadRecords(n)
     );
 
     let field_types_block = map(
-        tuple((ws(tag("field_types")), ws(tag(":")), ws(schema_parser))),
-        |(_,_,s)| s
+        tuple((
+            ws(tag("field_types")), 
+            ws(tag(":")), 
+            ws(schema_parser),
+            opt(ws(tag(","))),
+        )),
+        |(_,_,s,_)| IntermediateResult::FieldTypes(s)
     );
 
-    let any_of_that = permutation((
+    let any_of_that = many0(alt((
         csv_file_name_block, 
-        ws(opt(field_types_block)),
-        ws(opt(delimiter_block)), 
-        ws(opt(has_header_block)), 
-        ws(opt(max_read_records_block)), 
-    ));
+        field_types_block,
+        delimiter_block, 
+        has_header_block, 
+        max_read_records_block, 
+    )));
 
-    let mut csv_file_path: &str = "";
-    let mut field_types: HashMap<&str, DataTypeDescriptor<'_>> = HashMap::new();
-    let mut delimiter: u8 = b',';
-    let mut has_headers = true;
-    let mut max_read_records = Some(100);
 
-    map(any_of_that, 
-        |( csv_file_path, 
-              field_types, 
-              delimiter, 
-              has_header, 
-              max_read_records)| {
+
+    map(opt(any_of_that), 
+        |ds| {
+            let mut csv_file_path: &str = "";
+            let mut field_types: HashMap<&str, DataTypeDescriptor<'_>> = HashMap::new();
+            let mut delimiter: u8 = b',';
+            let mut has_header = true;
+            let mut max_read_records = Some(100);
+
+            if let Some(ds) = ds { 
+                for d in ds {
+                    match d {
+                        IntermediateResult::CSVFileName(s) => csv_file_path = s,
+                        IntermediateResult::Delimiter(c) => delimiter = c,
+                        IntermediateResult::FieldTypes(s) => field_types = s,
+                        IntermediateResult::HasHeader(b) => has_header = b,
+                        IntermediateResult::MaxReadRecords(n) => max_read_records = n,
+                    }
+                }
+            }
+
             FileDescriptorData::CSV(CSVData{
                 csv_file_path,
-                field_types: { 
-                    if let Some(f) = field_types { 
-                        f 
-                    } else {
-                        HashMap::new()
-                    } 
-                },
-                delimiter: {
-                    if let Some(d) = delimiter {
-                        d
-                    } else {
-                        b','
-                    }
-                },
-                max_read_records: {
-                    if let Some(r)= max_read_records {
-                        r
-                    } else {
-                        Some(100)
-                    }
-                },
-                has_header: {
-                    if let Some(b) = has_header {
-                        b
-                    } else {
-                        true
-                    }
-                },
-            }
-        )})(input)
+                field_types,
+                delimiter,
+                max_read_records,
+                has_header,
+            })
+
+        }
+          
+        )(input)
 
 
 }
 
-fn schema_parser<'a>(input: &str) -> IResult<&str, HashMap<&str, DataTypeDescriptor>> {
+fn schema_parser(input: &str) -> IResult<&str, HashMap<&str, DataTypeDescriptor>> {
     let head = tuple((ws(tag("field_types")), ws(tag("("))));
     let tail = tuple((opt(ws(tag(","))), ws(tag(")"))));
     let parser = 
@@ -224,11 +247,19 @@ fn usize_parser(input: &str) -> IResult<&str, usize> {
 }
 
 fn time_unit_parser(input: &str) -> IResult<&str, TimeUnit> {
+
     let nanoseconds_parser = map(ws(tag("Nanoseconds")), |_| TimeUnit::Nanosecond);
     let microseconds_parser = map(ws(tag("Microseconds")), |_| TimeUnit::Microsecond);
     let milliseconds_parser = map(ws(tag("Milliseconds")), |_| TimeUnit::Millisecond);
 
-    alt((nanoseconds_parser, microseconds_parser, milliseconds_parser))(input)
+    map(
+        tuple((
+            ws(tag("time_unit")),
+            ws(tag(":")),
+            ws(alt((nanoseconds_parser, microseconds_parser, milliseconds_parser))),
+        )),
+        |(_,_,b)| b
+    )(input)
 }
 
 fn is_nullable_parser(input: &str) -> IResult<&str, bool> {
@@ -272,72 +303,149 @@ fn format_parser(input: &str) -> IResult<&str, &str> {
     )(input)
 }
 
-fn format_parameter_parser(input: &str) -> IResult<&str, (&str, bool)> {
-    let p = permutation((opt(format_parser), opt(is_nullable_parser)));
+fn time_unit_parameter_parser(input: &str) -> IResult<&str, (TimeUnit, bool)> {
+    enum IntermediateResult {
+        Bool(bool),
+        TimeUnit(TimeUnit),        
+    }
+
+    let time_unit_parser_intermediate = map (
+        time_unit_parser, IntermediateResult::TimeUnit
+    );
+
+    let is_nullable_parser_intermediate = map (
+        is_nullable_parser, IntermediateResult::Bool
+    );
+
+    let p = many0(
+        alt((
+            is_nullable_parser_intermediate,
+            time_unit_parser_intermediate
+        ))
+    );
+
     map(opt(delimited(
         ws(tag("(")),
         ws(p),
         ws(tag(")")),
-    )), |d| {
-        if let Some((format, is_nullable)) = d {
-            let b = if let Some(b) = is_nullable {
-                    b
-                } else {
-                    true
-                };
-            let s = if let Some(s) = format {
-                    s
-                } else {
-                    ""
-                };
-            (s, b)
-        } else {
-            ("", true)
+    )), |ds| {
+        let mut b = true;
+        let mut s = TimeUnit::Microsecond;
+        if let Some(ds) = ds {
+            for d in ds {
+                if let IntermediateResult::Bool(b2) = d {
+                    b = b2;
+                }
+                if let IntermediateResult::TimeUnit(s2) = d {
+                    s = s2;
+                }
+            }
         }
+        (s, b)
     } )(input)
+
+}
+
+
+fn format_parameter_parser(input: &str) -> IResult<&str, (&str, bool)> {
+    enum IntermediateResult<'a> {
+        Bool(bool),
+        Str(&'a str),        
+    }
+
+    let format_parser_intermediate = map(
+        format_parser, IntermediateResult::Str
+    );
+
+    let is_nullable_intermediate = map(
+        is_nullable_parser,  IntermediateResult::Bool
+    );
+
+    let p = many0(
+        alt((
+            format_parser_intermediate, 
+            is_nullable_intermediate,
+        ))
+    );
+
+
+    map(opt(delimited(
+        ws(tag("(")),
+        ws(p),
+        ws(tag(")")),
+    )), |ds| {
+        let mut b = true;
+        let mut s = "";
+        if let Some(ds) = ds {
+            for d in ds {
+                if let IntermediateResult::Bool(b2) = d {
+                    b = b2;
+                }
+                if let IntermediateResult::Str(s2) = d {
+                    s = s2;
+                }
+            }
+        }
+        (s, b)
+    } )(input)
+}
+
+#[test]
+fn format_parameter_parser_test() {
+    assert_eq!(format_parameter_parser(""), Ok(("",("",true))));
+    assert_eq!(format_parameter_parser("()"), Ok(("",("",true))));
+    assert_eq!(format_parameter_parser("(format : \"%Y\", is_nullable: false)"), Ok(("",("%Y",false))));
+    assert_eq!(format_parameter_parser("(is_nullable: false, format : \"%Y\")"), Ok(("",("%Y",false))));
 }
 
 /// A parser for data types
 fn data_type_parser(input: &str) -> IResult<&str, DataTypeDescriptor> {
 
- 
-
     let boolean_type_parser = map(
         tuple((ws(tag("boolean")), ws(is_nullable_parameter_parser))),
         |(_, b)| DataTypeDescriptor::Boolean(b),
     );
+    
     let string_type_parser = map(
         tuple((ws(tag("string")), ws(is_nullable_parameter_parser))),
         |(_, b)| DataTypeDescriptor::String(b),
     );
+    
     let uint8_type_parser = map(
         tuple((ws(tag("uint8")), ws(is_nullable_parameter_parser))),
         |(_, b)| DataTypeDescriptor::UInt8(b),
     );
+    
     let uint16_type_parser = map(
         tuple((ws(tag("uint16")), ws(is_nullable_parameter_parser))),
         |(_, b)| DataTypeDescriptor::UInt16(b),
     );
+    
     let uint32_type_parser = map(
         tuple((ws(tag("uint32")), ws(is_nullable_parameter_parser))),
         |(_, b)| DataTypeDescriptor::UInt32(b),
     );
+    
     let uint64_type_parser = map(
         tuple((ws(tag("uint64")), ws(is_nullable_parameter_parser))),
         |(_, b)| DataTypeDescriptor::UInt64(b),
     );
+    
     let int8_type_parser = map(
         tuple((ws(tag("int8")), ws(is_nullable_parser))),
         |(_, b)| DataTypeDescriptor::Int8(b),
     );
+    
     let int16_type_parser = map(
         tuple((ws(tag("int16")), ws(is_nullable_parameter_parser))),
         |(_, b)| DataTypeDescriptor::Int16(b),
     );
+    
     let int32_type_parser = map(
         tuple((ws(tag("int32")), ws(is_nullable_parameter_parser))),
         |(_, b)| DataTypeDescriptor::Int32(b),
     );
+    
     let int64_type_parser = map(
         tuple((ws(tag("int64")), ws(is_nullable_parameter_parser))),
         |(_, b)| DataTypeDescriptor::Int64(b),
@@ -347,40 +455,45 @@ fn data_type_parser(input: &str) -> IResult<&str, DataTypeDescriptor> {
         tuple((ws(tag("float32")), ws(is_nullable_parameter_parser))),
         |(_, b)| DataTypeDescriptor::Float32(b),
     );
+    
     let float64_type_parser = map(
         tuple((ws(tag("float64")), ws(is_nullable_parameter_parser))),
         |(_, b)| DataTypeDescriptor::Float64(b),
     );
+    
     let binary_type_parser = map(
         tuple((ws(tag("binary")), ws(is_nullable_parameter_parser))),
         |(_, b)| DataTypeDescriptor::Binary(b),
     );
+    
     let date_type_parser = map(
         tuple((ws(tag("date")), ws(format_parameter_parser))),
         |(_, (f, b))| DataTypeDescriptor::Date(b, f),
     );
+    
     let time_type_parser = map(
         tuple((ws(tag("time")), ws(format_parameter_parser))),
         |(_, (f, b))| DataTypeDescriptor::Time(b, f),
     );
-    let null_type_parser = map(ws(tag("null")), |_| DataTypeDescriptor::Null);
+    
+    let null_type_parser = map(
+        ws(tag("null")), 
+        |_| DataTypeDescriptor::Null
+    );
+    
     let datetime_type_parser = map(
         tuple((
             ws(tag("datetime")),
-            ws(string_parser),
-            ws(time_unit_parser),
-            ws(opt(string_parser)),
-            ws(is_nullable_parser),
+            ws(format_parameter_parser),
         )),
-        |(_, f, d, tz, b)| DataTypeDescriptor::Datetime(b, f, d, tz.map(|x| x.to_string())),
+        |(_, (f, b))| DataTypeDescriptor::Datetime(b, f),
     );
     let duration_type_parser = map(
         tuple((
             ws(tag("duration")),
-            ws(time_unit_parser),
-            ws(is_nullable_parser),
+            ws(time_unit_parameter_parser),
         )),
-        |(_, d, b)| DataTypeDescriptor::Duration(b, d),
+        |(_, (d, b))| DataTypeDescriptor::Duration(b, d),
     );
 
     alt((
@@ -546,21 +659,21 @@ fn data_type_parser_test() {
         data_type_parser("Datetime \"%Y\" Nanoseconds"),
         Ok((
             "",
-            DataTypeDescriptor::Datetime(false, "%Y", TimeUnit::Nanosecond, None)
+            DataTypeDescriptor::Datetime(false, "%Y")
         ))
     );
     assert_eq!(
         data_type_parser("Datetime \"%Y\" Microseconds"),
         Ok((
             "",
-            DataTypeDescriptor::Datetime(false, "%Y", TimeUnit::Microsecond, None)
+            DataTypeDescriptor::Datetime(false, "%Y")
         ))
     );
     assert_eq!(
         data_type_parser("Datetime \"%Y\" Milliseconds"),
         Ok((
             "",
-            DataTypeDescriptor::Datetime(false, "%Y", TimeUnit::Millisecond, None)
+            DataTypeDescriptor::Datetime(false, "%Y")
         ))
     );
 

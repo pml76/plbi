@@ -68,7 +68,7 @@ fn load_base_tables(
                             let dtype = match v {
                                 DataTypeDescriptor::Time(_, _)
                                 | DataTypeDescriptor::Date(_, _)
-                                | DataTypeDescriptor::Datetime(_, _, _, _) => DataType::Utf8,
+                                | DataTypeDescriptor::Datetime(_, _) => DataType::Utf8,
                                 DataTypeDescriptor::UInt8(_) => DataType::UInt8,
                                 DataTypeDescriptor::UInt16(_) => DataType::UInt16,
                                 DataTypeDescriptor::UInt32(_) => DataType::UInt32,
@@ -361,7 +361,6 @@ fn generate_context_test() {
 #[test]
 fn datetime_format_test() {
     use crate::grammar::{ast::*, parser::ast_parser};
-    use arrow::datatypes::TimeUnit;
     use std::collections::HashMap;
 
     let string_to_parse = "load_files 
@@ -375,11 +374,11 @@ fn datetime_format_test() {
     let mut dim_date_field_types = HashMap::new();
     dim_date_field_types.insert(
         "OutageStartTime",
-        DataTypeDescriptor::Datetime(false, "%Y-%m-%d %H:%M:%S", TimeUnit::Nanosecond, None),
+        DataTypeDescriptor::Datetime(false, "%Y-%m-%d %H:%M:%S"),
     );
     dim_date_field_types.insert(
         "OutageEndTime",
-        DataTypeDescriptor::Datetime(false, "%Y-%m-%d %H:%M:%S", TimeUnit::Nanosecond, None),
+        DataTypeDescriptor::Datetime(false, "%Y-%m-%d %H:%M:%S"),
     );
 
     let expected_ast = Ast {
