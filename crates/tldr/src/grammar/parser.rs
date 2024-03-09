@@ -179,7 +179,7 @@ fn file_descriptor_parser(input: &str) -> IResult<&str, FileDescriptorData> {
 
 }
 
-fn schema_parser<'a>(input: &str) -> IResult<&str, HashMap<&'a str, DataTypeDescriptor>> {
+fn schema_parser<'a>(input: &str) -> IResult<&str, HashMap<&str, DataTypeDescriptor>> {
     let head = tuple((ws(tag("field_types")), ws(tag("("))));
     let tail = tuple((opt(ws(tag(","))), ws(tag(")"))));
     let parser = 
@@ -233,34 +233,74 @@ fn time_unit_parser(input: &str) -> IResult<&str, TimeUnit> {
 
 fn is_nullable_parser(input: &str) -> IResult<&str, bool> {
     map(
-        tuple((ws(tag("is_nullable")), ws(tag(":")), ws(bool_parser))),
-        |(_, _, b)| b,
+        tuple((
+            ws(tag("is_nullable")), 
+            ws(tag(":")), 
+            ws(bool_parser), 
+            opt(ws(tag(",")))
+        )),
+        |(_, _, b,_)| b,
+    )(input)
+}
+
+
+fn is_nullable_parameter_parser(input: &str) -> IResult<&str, bool> {
+    map(opt(delimited(
+        ws(tag("(")),
+        ws(is_nullable_parser),
+        ws(tag(")")),
+        )),
+    |b|{ 
+        if let Some(b) = b  {
+            b
+        } else {
+            true
+        }
+    },
     )(input)
 }
 
 fn format_parser(input: &str) -> IResult<&str, &str> {
     map(
-        tuple((ws(tag("format")), ws(tag(":")), ws(string_parser))),
-        |(_,_,s)| s
+        tuple((
+            ws(tag("format")), 
+            ws(tag(":")), 
+            ws(string_parser),
+            opt(ws(tag(","))),
+        )),
+        |(_,_,s,_)| s
     )(input)
+}
+
+fn format_parameter_parser(input: &str) -> IResult<&str, (&str, bool)> {
+    let p = permutation((opt(format_parser), opt(is_nullable_parser)));
+    map(opt(delimited(
+        ws(tag("(")),
+        ws(p),
+        ws(tag(")")),
+    )), |d| {
+        if let Some((format, is_nullable)) = d {
+            let b = if let Some(b) = is_nullable {
+                    b
+                } else {
+                    true
+                };
+            let s = if let Some(s) = format {
+                    s
+                } else {
+                    ""
+                };
+            (s, b)
+        } else {
+            ("", true)
+        }
+    } )(input)
 }
 
 /// A parser for data types
 fn data_type_parser(input: &str) -> IResult<&str, DataTypeDescriptor> {
 
-    let is_nullable_parameter_parser = map(opt(delimited(
-            ws(tag("(")),
-            ws(is_nullable_parser),
-            ws(tag(")")),
-        )),
-    |b|{ 
-            if let Some(b) = b  {
-                b
-            } else {
-                true
-            }
-        },
-    );
+ 
 
     let boolean_type_parser = map(
         tuple((ws(tag("boolean")), ws(is_nullable_parameter_parser))),
@@ -316,12 +356,12 @@ fn data_type_parser(input: &str) -> IResult<&str, DataTypeDescriptor> {
         |(_, b)| DataTypeDescriptor::Binary(b),
     );
     let date_type_parser = map(
-        tuple((ws(tag("date")), ws(string_parser), ws(is_nullable_parser))),
-        |(_, f, b)| DataTypeDescriptor::Date(b, f),
+        tuple((ws(tag("date")), ws(format_parameter_parser))),
+        |(_, (f, b))| DataTypeDescriptor::Date(b, f),
     );
     let time_type_parser = map(
-        tuple((ws(tag("time")), ws(string_parser), ws(is_nullable_parser))),
-        |(_, f, b)| DataTypeDescriptor::Time(b, f),
+        tuple((ws(tag("time")), ws(format_parameter_parser))),
+        |(_, (f, b))| DataTypeDescriptor::Time(b, f),
     );
     let null_type_parser = map(ws(tag("null")), |_| DataTypeDescriptor::Null);
     let datetime_type_parser = map(
