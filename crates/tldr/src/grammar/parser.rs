@@ -248,9 +248,9 @@ fn usize_parser(input: &str) -> IResult<&str, usize> {
 
 fn time_unit_parser(input: &str) -> IResult<&str, TimeUnit> {
 
-    let nanoseconds_parser = map(ws(tag("Nanoseconds")), |_| TimeUnit::Nanosecond);
-    let microseconds_parser = map(ws(tag("Microseconds")), |_| TimeUnit::Microsecond);
-    let milliseconds_parser = map(ws(tag("Milliseconds")), |_| TimeUnit::Millisecond);
+    let nanoseconds_parser = map(ws(tag("nanoseconds")), |_| TimeUnit::Nanosecond);
+    let microseconds_parser = map(ws(tag("microseconds")), |_| TimeUnit::Microsecond);
+    let milliseconds_parser = map(ws(tag("milliseconds")), |_| TimeUnit::Millisecond);
 
     map(
         tuple((
@@ -278,15 +278,17 @@ fn is_nullable_parser(input: &str) -> IResult<&str, bool> {
 fn is_nullable_parameter_parser(input: &str) -> IResult<&str, bool> {
     map(opt(delimited(
         ws(tag("(")),
-        ws(is_nullable_parser),
+        ws(many0(is_nullable_parser)),
         ws(tag(")")),
         )),
-    |b|{ 
-        if let Some(b) = b  {
-            b
-        } else {
-            true
-        }
+    |bs|{ 
+        let mut b = true;
+        if let Some(bs) = bs  {
+            for b2 in bs {
+                b = b2;
+            }
+        } 
+        b
     },
     )(input)
 }
@@ -432,7 +434,7 @@ fn data_type_parser(input: &str) -> IResult<&str, DataTypeDescriptor> {
     );
     
     let int8_type_parser = map(
-        tuple((ws(tag("int8")), ws(is_nullable_parser))),
+        tuple((ws(tag("int8")), ws(is_nullable_parameter_parser))),
         |(_, b)| DataTypeDescriptor::Int8(b),
     );
     
@@ -599,81 +601,74 @@ fn string_parser_test() {
 #[test]
 fn data_type_parser_test() {
     assert_eq!(
-        data_type_parser("Boolean"),
+        data_type_parser("boolean"),
+        Ok(("", DataTypeDescriptor::Boolean(true)))
+    );
+
+    assert_eq!(
+        data_type_parser("boolean(is_nullable: false)"),
         Ok(("", DataTypeDescriptor::Boolean(false)))
     );
+
     assert_eq!(
-        data_type_parser("UInt8"),
-        Ok(("", DataTypeDescriptor::UInt8(false)))
+        data_type_parser("uint8"),
+        Ok(("", DataTypeDescriptor::UInt8(true)))
+    );
+
+    assert_eq!(
+        data_type_parser("uint16"),
+        Ok(("", DataTypeDescriptor::UInt16(true)))
     );
     assert_eq!(
-        data_type_parser("UInt16"),
-        Ok(("", DataTypeDescriptor::UInt16(false)))
+        data_type_parser("uint32"),
+        Ok(("", DataTypeDescriptor::UInt32(true)))
     );
     assert_eq!(
-        data_type_parser("UInt32"),
-        Ok(("", DataTypeDescriptor::UInt32(false)))
+        data_type_parser("uint64"),
+        Ok(("", DataTypeDescriptor::UInt64(true)))
     );
     assert_eq!(
-        data_type_parser("UInt64"),
-        Ok(("", DataTypeDescriptor::UInt64(false)))
+        data_type_parser("int8"),
+        Ok(("", DataTypeDescriptor::Int8(true)))
     );
     assert_eq!(
-        data_type_parser("Int8"),
-        Ok(("", DataTypeDescriptor::Int8(false)))
+        data_type_parser("int16"),
+        Ok(("", DataTypeDescriptor::Int16(true)))
     );
     assert_eq!(
-        data_type_parser("Int16"),
-        Ok(("", DataTypeDescriptor::Int16(false)))
+        data_type_parser("int32"),
+        Ok(("", DataTypeDescriptor::Int32(true)))
     );
     assert_eq!(
-        data_type_parser("Int32"),
-        Ok(("", DataTypeDescriptor::Int32(false)))
+        data_type_parser("int64"),
+        Ok(("", DataTypeDescriptor::Int64(true)))
     );
     assert_eq!(
-        data_type_parser("Int64"),
-        Ok(("", DataTypeDescriptor::Int64(false)))
+        data_type_parser("float32"),
+        Ok(("", DataTypeDescriptor::Float32(true)))
     );
     assert_eq!(
-        data_type_parser("Float32"),
-        Ok(("", DataTypeDescriptor::Float32(false)))
+        data_type_parser("float64"),
+        Ok(("", DataTypeDescriptor::Float64(true)))
     );
     assert_eq!(
-        data_type_parser("Float64"),
-        Ok(("", DataTypeDescriptor::Float64(false)))
+        data_type_parser("string"),
+        Ok(("", DataTypeDescriptor::String(true)))
     );
     assert_eq!(
-        data_type_parser("String"),
-        Ok(("", DataTypeDescriptor::String(false)))
+        data_type_parser("binary"),
+        Ok(("", DataTypeDescriptor::Binary(true)))
     );
     assert_eq!(
-        data_type_parser("Binary"),
-        Ok(("", DataTypeDescriptor::Binary(false)))
-    );
-    assert_eq!(
-        data_type_parser("Date \"%Y\""),
+        data_type_parser("date(format: \"%Y\", is_nullable: false)"),
         Ok(("", DataTypeDescriptor::Date(false, "%Y")))
     );
 
     assert_eq!(
-        data_type_parser("Datetime \"%Y\" Nanoseconds"),
+        data_type_parser("datetime(format: \"%Y\" )"),
         Ok((
             "",
-            DataTypeDescriptor::Datetime(false, "%Y")
-        ))
-    );
-    assert_eq!(
-        data_type_parser("Datetime \"%Y\" Microseconds"),
-        Ok((
-            "",
-            DataTypeDescriptor::Datetime(false, "%Y")
-        ))
-    );
-    assert_eq!(
-        data_type_parser("Datetime \"%Y\" Milliseconds"),
-        Ok((
-            "",
-            DataTypeDescriptor::Datetime(false, "%Y")
+            DataTypeDescriptor::Datetime(true, "%Y")
         ))
     );
 
