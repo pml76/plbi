@@ -1,6 +1,10 @@
 use arrow::datatypes::TimeUnit;
 use std::collections::HashMap;
 
+use nom_locate::LocatedSpan;
+
+pub type Span<'a> = LocatedSpan<&'a str>;
+
 #[derive(PartialEq, Debug, Clone)]
 pub enum DataTypeDescriptor<'a> {
     UInt8(bool),

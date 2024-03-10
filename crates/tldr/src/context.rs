@@ -363,9 +363,9 @@ fn datetime_format_test() {
     use crate::grammar::{ast::*, parser::ast_parser};
     use std::collections::HashMap;
 
-    let string_to_parse = "load_files 
+    let string_to_parse = Span::new("load_files 
     CSV(file_name = \"contoso/FactITSLA.csv\", field_types{ (\"OutageStartTime\": Datetime \"%Y-%m-%d %H:%M:%S\" Nanoseconds) (\"OutageEndTime\": Datetime \"%Y-%m-%d %H:%M:%S\" Nanoseconds ) })
-    ";
+    ");
 
     let parse_result = ast_parser(string_to_parse);
 
@@ -391,7 +391,10 @@ fn datetime_format_test() {
         })],
     };
 
-    assert_eq!(parse_result, Ok(("", expected_ast)));
+    if parse_result.is_err() {
+        panic!("{:?}", parse_result);
+    }
+    assert_eq!(parse_result.unwrap().1, expected_ast);
 
     let (_, ast) = parse_result.unwrap();
     assert!(Context::convert_ast(&ast).is_ok());
@@ -402,9 +405,11 @@ fn date_format_test() {
     use crate::grammar::{ast::*, parser::ast_parser};
     use std::collections::HashMap;
 
-    let string_to_parse = "load_files 
+    let string_to_parse = Span::new(
+        "load_files 
     CSV(file_name = \"contoso/DimDate.csv\", field_types{ (\"DateKey\": Date \"%Y-%m-%d\") })
-    ";
+    ",
+    );
 
     let parse_result = ast_parser(string_to_parse);
 
@@ -423,7 +428,10 @@ fn date_format_test() {
         })],
     };
 
-    assert_eq!(parse_result, Ok(("", expected_ast)));
+    if parse_result.is_err() {
+        panic!("{:?}", parse_result);
+    }
+    assert_eq!(parse_result.unwrap().1, expected_ast);
 
     let (_, ast) = parse_result.unwrap();
     assert!(Context::convert_ast(&ast).is_ok());
@@ -434,7 +442,8 @@ fn parse_to_context_test() {
     use crate::grammar::{ast::*, parser::ast_parser};
     use std::collections::HashMap;
 
-    let string_to_parse = "load_files 
+    let string_to_parse = Span::new(
+        "load_files 
     CSV(file_name = \"contoso/DimAccount.csv\")
     CSV(file_name = \"contoso/DimChannel.csv\")
     CSV(file_name = \"contoso/DimCurrency.csv\")
@@ -460,7 +469,8 @@ fn parse_to_context_test() {
     CSV(file_name = \"contoso/FactSales.csv\")
     CSV(file_name = \"contoso/FactSalesQuota.csv\")
     CSV(file_name = \"contoso/FactStrategyPlan.csv\")
-    ";
+    ",
+    );
 
     let parse_result = ast_parser(string_to_parse);
 
@@ -652,7 +662,10 @@ fn parse_to_context_test() {
         ],
     };
 
-    assert_eq!(parse_result, Ok(("", expected_ast)));
+    if parse_result.is_err() {
+        panic!("{:?}", parse_result);
+    }
+    assert_eq!(parse_result.unwrap().1, expected_ast);
 
     let (_, ast) = parse_result.unwrap();
     assert!(Context::convert_ast(&ast).is_ok());

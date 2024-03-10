@@ -29,6 +29,8 @@ arrow = {workspace = true}
 arrow-csv = {workspace = true}
 arrow-odbc = {workspace = true}
 tokio = {workspace = true}
+nom_locate = "4.2.0"
+nom-supreme = "0.8.0"
 
 
 
