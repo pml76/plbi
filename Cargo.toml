@@ -19,3 +19,4 @@ nom_locate = {version = "4.2.0"}
 nom-supreme = {version = "0.8.0"}
 miette = {version = "7.2.0", features= ["fancy"]}
 thiserror = {version = "1.0.57"}
+nom-tracable = {version = "0.9.1"}
