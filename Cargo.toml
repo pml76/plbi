@@ -15,3 +15,6 @@ arrow-odbc = "8.0.0"
 
 datafusion = { version = "36.0.0", features = ["apache-avro", "avro", "backtrace", "force_hash_collisions", "math_expressions", "num-traits", "serde"]}
 tokio = {version = "1.36.0", features = ["full"]}
+nom_locate = {version = "4.2.0"}
+nom-supreme = {version = "0.8.0"}
+miette = {version = "7.2.0", features= ["fancy"]}
