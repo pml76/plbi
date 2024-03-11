@@ -32,6 +32,7 @@ tokio = {workspace = true}
 nom_locate = {workspace = true}
 nom-supreme = {workspace = true}
 miette = {workspace = true}
+thiserror = {workspace = true}
 
 
 
