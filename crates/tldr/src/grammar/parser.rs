@@ -557,16 +557,16 @@ fn schema_parser_test() {
     expected_result.insert("asdf", DataTypeDescriptor::String(false));
 
     assert_eq!(
-        schema_parser("( \"asdf\": string(is_nullable: false) )"),
-        Ok(("", expected_result))
+        schema_parser(Span::new("( \"asdf\": string(is_nullable: false) )")),
+        Ok((Span::new(""), expected_result))
     );
 }
 
 #[test]
 fn string_parser_test() {
     assert_eq!(
-        string_parser("\"Hello, world!\""),
-        Ok(("", "Hello, world!"))
+        string_parser(Span::new("\"Hello, world!\"")),
+        Ok((Span::new(""), Span::new("Hello, world!")))
     );
 }
 
